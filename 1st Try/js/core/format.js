@@ -1,6 +1,9 @@
 // Number and time formatting. Notation is chosen in Options (player.options.notation).
 
+// mixed: commas below a million, scientific above, real units (pg … M☉, MK) for masses and temperatures.
+// scientific: every number from 1,000 up in scientific notation, masses in kg, temperatures in K.
 const NOTATIONS = {
+  mixed: "Mixed",
   scientific: "Scientific",
   standard: "Standard (K, M, B…)",
   engineering: "Engineering",
@@ -21,7 +24,12 @@ const STANDARD_SUFFIXES = [
 ];
 
 function currentNotation() {
-  return (typeof player !== "undefined" && player.options && player.options.notation) || "scientific";
+  return (typeof player !== "undefined" && player.options && player.options.notation) || "mixed";
+}
+
+/** Scientific notation: every number from 1,000 up as 1.23e3, masses in kg, temperatures in K. */
+function scientificNumbers() {
+  return currentNotation() === "scientific";
 }
 
 /** Plain number with thousands separators: 1234567 → "1,234,567". */
@@ -62,7 +70,7 @@ function format(x, acc = 2) {
 
   const notation = currentNotation();
 
-  if (x.gte(1e6)) {
+  if (x.gte(notation === "scientific" ? 1000 : 1e6)) {
     if (notation === "standard") {
       const tier = Math.floor(x.log10().toNumber() / 3);
       if (tier < STANDARD_SUFFIXES.length) {
@@ -92,7 +100,7 @@ function format(x, acc = 2) {
 /** Format a count (no decimals below 1e6), e.g. number of generators owned. */
 function formatWhole(x) {
   x = E(x);
-  if (x.gte(1e6) || x.lt(0)) return format(x, 2);
+  if (x.gte(scientificNumbers() ? 1000 : 1e6) || x.lt(0)) return format(x, 2);
   return commaNumber(x.floor().toNumber());
 }
 

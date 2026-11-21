@@ -25,7 +25,7 @@ registerLayer({
 
   // Second line: the softcap, when it applies
   headerNote: () => {
-    if (atmosphereActive() && criticalCoreReached()) return "Your core has cleared its orbit (isolation mass, 10 M⊕): core growth is much slower. Grow bigger with gas in the Atmosphere tab.";
+    if (atmosphereActive() && criticalCoreReached()) return "Your core has cleared its orbit (isolation mass, " + formatMass(CRITICAL_CORE) + "): core growth is much slower. Grow bigger with gas in the Atmosphere tab.";
     return tmp.accretion.softcapped ? "Mass gain is softcapped above " + formatMass(massSoftcapStart()) + "/s." : "";
   },
 
@@ -60,7 +60,7 @@ registerLayer({
   buyables: {
     static: {
       title: "Static Charge",
-      desc: "Electric charge makes dust stick to you. Each level adds 1 pg/s.",
+      desc: () => "Electric charge makes dust stick to you. Each level adds " + formatMass(PG) + "/s.",
       noSpend: () => hasMilestone("collision", "c8"),
       costStart: PG,
       costGrowth: () => (hasUpgrade("accretion", 4) ? 1.12 : 1.15),

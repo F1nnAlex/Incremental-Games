@@ -19,6 +19,7 @@ const PG = 1e-15; // one picogram in kg, the starting size of the speck
 /** formatMass(E(0.0032)) → "3.20 g", formatMass(6e24) → "1.00 M⊕" */
 function formatMass(kg, acc = 2) {
   kg = E(kg);
+  if (scientificNumbers()) return format(kg, acc) + " kg";
   if (kg.lte(0)) return format(0, acc) + " pg";
   for (const [unit, size] of MASS_UNITS) {
     if (kg.gte(size)) return format(kg.div(size), acc) + " " + unit;
@@ -34,6 +35,7 @@ function formatShortMass(kg) {
 /** Temperatures in kelvin: 5,800 K, 15.0 MK, 2.70 GK. */
 function formatTemp(k) {
   k = E(k);
+  if (scientificNumbers()) return format(k) + " K";
   if (k.gte(1e12)) return format(k.div(1e12)) + " TK";
   if (k.gte(1e9)) return format(k.div(1e9)) + " GK";
   if (k.gte(1e6)) return format(k.div(1e6)) + " MK";

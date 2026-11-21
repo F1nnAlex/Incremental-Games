@@ -85,6 +85,8 @@ All upgrades live in the **Upgrades** tab: one column per layer with square tile
 ## Look
 A resource panel on the right (IMR style) lists every unlocked currency with its gain; a layer can customise its rows with `resources()`. Click a row to open its tab.
 
+**Notation** (Options): *Mixed* is the default, with commas below a million, scientific notation above it, real units for mass (pg … M☉) and temperature (K, MK, GK), and gas in M⊕. *Scientific* shows every number from 1,000 up as 1.23e3, all masses (gas too) in kg, and temperatures in K. *Standard* and *Engineering* change only the numbers above a million. Always format through `format`, `formatWhole`, `formatMass`, `formatTemp` or `formatGas`, so every notation applies.
+
 IMR-style layout: tabs in a left sidebar, square panels. Layers can have sub-tabs (`subtabs: [{ id, name, build(panel) → update }]`); Evolution has Forms and a Viewer that shows your body growing and changing colour, your progress to the next form, and your path of forms. Colours are CSS variables at the top of `css/style.css`; each layer's colour is its `color` in the content file.
 
 ## Rules of thumb

@@ -201,7 +201,7 @@ const TABLE = [
 
 // The elements you can get right now. kind: fuel | fusion | discovery. Everything else comes in later updates.
 const ELEMENT_INFO = {
-  H: { kind: "fuel", effect: () => "Fused into Helium once your core reaches 10 MK." },
+  H: { kind: "fuel", effect: () => "Fused into Helium once your core reaches " + formatTemp(CHAIN_BY_SYM.He.ignite) + "." },
   He: { kind: "fusion", about: "Makes the mass gain softcap start later.", effect: () => "Mass gain softcap starts " + formatMult(amountOf("He").add(1).pow(0.01)) + " later." },
   C: { kind: "fusion", about: "Boosts Shard gain.", effect: () => "Shard gain " + formatMult(elemLog("C").add(1)) + "." },
   O: { kind: "fusion", about: "Boosts Stardust gain and gas gain.", effect: () => "Stardust gain " + formatMult(oxygenStardustMult()) + " and gas gain " + formatMult(elemLog("O").div(10).add(1)) + "." },

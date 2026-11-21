@@ -92,6 +92,7 @@ function decksBase() {
 /** "0.012 M⊕", "3.42 M⊕", "12,345 M⊕" */
 function formatGas(x) {
   x = E(x);
+  if (scientificNumbers()) return formatMass(x.mul(EARTH_MASS)); // gas is stored in Earth masses
   return format(x, x.lt(1) ? 3 : 2) + " M⊕";
 }
 

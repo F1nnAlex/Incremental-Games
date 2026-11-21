@@ -15,6 +15,10 @@ const MIGRATIONS = {
       // removed elements and Shells are dropped automatically when the save is merged
     }
   },
+  // v3: "Scientific" now means every number in scientific notation; the old "scientific" look is "Mixed"
+  3: (s) => {
+    if (s.options && s.options.notation === "scientific") s.options.notation = "mixed";
+  },
 };
 
 function encodeSave(obj) {

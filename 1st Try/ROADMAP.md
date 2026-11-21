@@ -17,7 +17,7 @@ The base game runs about **4h25** to Supergiant:
 | ------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
 | 1 (done)     | Dust → Star      | Accretion, Collision, Atmosphere, Fusion                                                                                                                                                                                                                                                            | ~4.5 h          |
 | 2 (done)     | Star era, deeper | **Star Map**: challenges as birthplaces; new Fusion upgrades unlocked by completions; Supergiant gated behind the Star Map; Enriched Winds (gas +20% per wind, up to ×2) | built: +1.5 h → ~6 h |
-| **3 (next)** | Death of a star  | **Supernova** (layer 4): core collapse resets Fusion. Currency **Neutronium**. Supergiant burning stages (Ne → Mg → Si → Fe) refill the Periodic Table. Each Supernova, choose a **remnant**: Neutron Star (pulsar spin, steady bonuses) or Black Hole (accretion disk, huge but risky multipliers) | +6–8 h          |
+| **3 (next)** | Death of a star  | **Supernova** (layer 4): core collapse resets Fusion. Currency **Neutronium**. Supergiant burning stages (Ne → Mg → Si → Fe) refill the Periodic Table. Each Supernova, choose a **remnant**: Neutron Star (pulsar spin, steady bonuses) or Black Hole (accretion disk, huge but risky multipliers). **Accretion and Collision upgrade expansion** (5 + 5 new upgrades, see below) | +6–8 h          |
 | 4            | Heavy elements   | **Neutron Capture**: neutron-star mergers and r-process "drops" of rare heavy elements (Sr, Ag, Au, Pt, U), collected with rarity tiers into periods 4–7 of the Periodic Table                                                                                                                      | +8–10 h         |
 | 5            | Galaxy           | **Galaxy** (layer 5): you become a star cluster, then a galaxy. Manage star populations, dark matter halo, spiral arms                                                                                                                                                                              | +15 h+          |
 
@@ -106,3 +106,48 @@ The total is 30 completions. All the numbers are knobs in `STARMAP` at the top o
   - saves keep region state; old saves get defaults
 - **Simulator:** completion timeline matches the targets; the end at 30/30 is about 7–7.5 h.
 - **Browser screenshots:** the Star Map with 0, partial and full completions, inside a region (rule banner on the Accretion tab), and phone width. Check no console errors.
+
+---
+
+## Update 3 (planned): Accretion and Collision upgrade expansion
+Five new Accretion upgrades and five new Collision upgrades. They are priced from what a player actually has at the end of Update 2, so the first tiles land in the late Star Map, a few at 30/30, and the last ones are goals for Update 3 itself.
+
+### What a player has at the end of Update 2
+From the simulator, taking the peak in each 10-minute window:
+
+| Moment | Peak mass per run | Mass gain | Shards per run |
+|---|---|---|---|
+| Late Star Map (4h20–6h00) | 1e37–1e38 kg | ~1e39–1e40 kg/s | 1e13–1e14 |
+| Just after 30/30 (6h10) | 2e43 kg | 3e41 kg/s | 7e17 |
+| Plateau, start of Update 3 (6h30–7h50) | 1e44–5e44 kg | ~3.5e41 kg/s, flat | 1e19–5e19 |
+
+- **Mass:** after 30/30, gain is pinned by the hard (log) mass softcap and grows almost linearly. Anything priced above about 1e45 kg is out of reach until Update 3's boosts exist.
+- **Shards:** late in the game they come almost entirely from Debris Disk's passive 10% of the collision gain (about 4e16/s at the plateau). They reset every Stellar Wind, so Shard prices must fit inside a single generation.
+
+### Design rules
+- **Act on the real limits.** Late in the game, multipliers applied before the mass softcap do almost nothing, because gain sits far above the softcap. The new upgrades act on softcap start or strength, Stardust, core temperature (Update 3's burning stages Ne → Mg → Si → Fe need hotter cores) and the Update 2 elements.
+- **Three price bands:** affordable in late Update 2, at 30/30, and on the start-of-Update-3 plateau. The last tile in each row targets Update 3 progress.
+- **Tiles and unlocks:** the new tiles go into the existing Upgrades tab columns. They show as "?" until Supergiant; the Update 3 tiles stay hidden until the first Supernova. Keep rules are the existing ones: Accretion upgrades from 2 winds, Shard upgrades from 4 winds.
+
+### Accretion expansion (cost in mass)
+| # | Name | Cost | Available | Effect |
+|---|---|---|---|---|
+| 11 | Stellar Wind Capture | 1e37 kg | late Update 2 (~4h20) | Mass softcap starts ×(1 + Stellar Winds) later |
+| 12 | Accretion Disk | 1e42 kg | at 30/30 | The hard (log) mass softcap starts ×10 later |
+| 13 | Eddington Luminosity | 1e44 kg | plateau (~6h30) | Stardust gain ×log₁₀(mass) |
+| 14 | Bondi Accretion | 1e47 kg | Update 3 | Mass softcap starts later based on Neutronium |
+| 15 | Hypermassive Core | 1e52 kg | Update 3 | Core temperature ×2 (for Silicon and Iron burning) |
+
+### Collision expansion (cost in Shards)
+| # | Name | Cost | Available | Effect |
+|---|---|---|---|---|
+| 9 | Impact Heating | 1e13 | late Update 2 (~4h20) | Core temperature ×(1 + log₁₀ Shards ÷ 20) |
+| 10 | Spallation Showers | 1e17 | at 30/30 | Lithium, Beryllium and Boron effects ×2 |
+| 11 | Debris Halo | 1e19 | plateau (~6h50) | Debris Disk gives 50% of Shard gain per second instead of 10% |
+| 12 | Shard Lattice | 1e23 | Update 3 | Stardust gain ×log₁₀ Shards |
+| 13 | Iron Meteorites | 1e28 | Update 3 | Iron fusion ×log₁₀ Shards |
+
+### Implementation notes
+- **Keys** continue the existing ones: Accretion uses 1–7 and 10, so the new ones are 11–15; Collision uses 1–8, so the new ones are 9–13.
+- **Hooks already exist** for every effect: `massSoftcapStart` and the log softcap in `accretion.js temp()`, `stardustMult` and `coreTemp` in `fusion.js`, Debris Disk's `passive` in `collision.js`, and the Li/Be/B checks in `fusion.js`.
+- **Tuning:** effect sizes and the Update 3 prices (1e47 / 1e52 kg, 1e23 / 1e28 Shards) get tuned with the simulator once the Supernova layer exists. Watch Eddington Luminosity and Shard Lattice most: Stardust boosts compound.
