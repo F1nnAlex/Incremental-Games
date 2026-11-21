@@ -3,17 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Incremental Game</title>
+  <title>Speck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=Titillium+Web:wght@400;600&display=swap">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header id="header">
-    <div id="headerAmount" class="header-amount"></div>
-    <div id="headerRate" class="header-rate"></div>
+    <div class="header-main">
+      <div id="headerAmount" class="header-amount"></div>
+      <div id="headerRate" class="header-rate"></div>
+    </div>
+    <div id="headerText" class="header-text"></div>
   </header>
 
-  <nav id="tabBar"></nav>
-  <main id="tabContainer"></main>
+  <div class="layout">
+    <nav id="tabBar" aria-label="Game tabs"></nav>
+    <main id="tabContainer"></main>
+  </div>
 
   <div id="modalRoot"></div>
   <div id="notifications"></div>
@@ -24,7 +32,9 @@
   <!-- Engine (order matters) -->
   <script src="js/core/decimal.js"></script>
   <script src="js/core/format.js"></script>
+  <script src="js/core/scaling.js"></script>
   <script src="js/core/layers.js"></script>
+  <script src="js/core/automation.js"></script>
   <script src="js/core/player.js"></script>
   <script src="js/core/save.js"></script>
   <script src="js/core/ui.js"></script>
@@ -33,7 +43,11 @@
   <script src="js/core/loop.js"></script>
 
   <!-- Game content: one file per layer, in layer order -->
-  <script src="js/content/main.js"></script>
+  <script src="js/content/units.js"></script>
+  <script src="js/content/accretion.js"></script>
+  <script src="js/content/evolution.js"></script>
+  <script src="js/content/collision.js"></script>
+  <script src="js/content/fusion.js"></script>
 
   <!-- Start -->
   <script src="js/game.js"></script>

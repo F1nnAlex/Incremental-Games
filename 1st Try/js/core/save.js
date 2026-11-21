@@ -1,6 +1,6 @@
 // Saving, loading, export/import and save-format migrations.
 
-const SAVE_KEY = "incremental_1st_try_save";
+const SAVE_KEY = "speck_save";
 const AUTOSAVE_SECONDS = 30;
 
 // Migrations: MIGRATIONS[n] upgrades a raw (parsed) save from version n-1 to n.

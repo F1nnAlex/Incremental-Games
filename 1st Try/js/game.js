@@ -10,12 +10,10 @@ function afterLoad() {
 
 function updateUI() {
   const main = LAYERS[LAYER_ORDER[0]];
-  setText(
-    document.getElementById("headerAmount"),
-    format(player[main.id][main.currency]) + " " + (main.currencyName || main.currency)
-  );
+  setText(document.getElementById("headerAmount"), amountText(main.id, player[main.id][main.currency]));
   const rate = main.rate ? main.rate() : null;
-  setText(document.getElementById("headerRate"), rate ? "+" + formatRate(rate) : "");
+  setText(document.getElementById("headerRate"), rate ? "+" + amountText(main.id, rate) + "/s" : "");
+  setText(document.getElementById("headerText"), main.headerText ? main.headerText() : "");
   updateTabs();
 }
 

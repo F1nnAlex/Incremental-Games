@@ -11,7 +11,9 @@ function getStartPlayer() {
     version: SAVE_VERSION,
     lastTick: Date.now(),
     tab: "main",
-    unlocked: {},
+    unlocked: Object.fromEntries(LAYER_ORDER.map((id) => [id, false])),
+    auto: getAutomationDefaults(),
+    subtabs: Object.fromEntries(LAYER_ORDER.map((id) => [id, "main"])),
     stats: {
       timePlayed: 0, // seconds
       started: Date.now(),

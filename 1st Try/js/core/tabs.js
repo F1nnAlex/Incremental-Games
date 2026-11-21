@@ -9,9 +9,10 @@ function buildTabs() {
   container.replaceChildren();
   TABS.length = 0;
 
-  const add = (id, label, isUnlocked, build, color) => {
+  const add = (id, label, isUnlocked, build, color, system) => {
     const panel = h("section", { class: "tab-panel", id: "tab-" + id });
     const button = h("button", { class: "tab-btn", onclick: () => showTab(id) }, label);
+    if (system) button.dataset.system = system;
     if (color) button.style.setProperty("--tab-color", color);
     const update = build(panel);
     bar.append(button);
@@ -23,8 +24,9 @@ function buildTabs() {
     const def = LAYERS[id];
     add(id, def.name, () => tmp[id].unlocked, (panel) => buildLayerTab(def, panel), def.color);
   }
-  add("stats", "Stats", () => true, buildStatsTab);
-  add("options", "Options", () => true, buildOptionsTab);
+  add("upgrades", "Upgrades", () => true, buildUpgradesTab, "#e4e7ef");
+  add("stats", "Stats", () => true, buildStatsTab, null, "first");
+  add("options", "Options", () => true, buildOptionsTab, null, "rest");
 
   showTab(player.tab);
 }
@@ -67,7 +69,7 @@ function buildStatsTab(panel) {
         rows[id] = h("li");
         list.append(rows[id]);
       }
-      let text = def.name + ": " + format(player[id][def.currency]) + " " + (def.currencyName || def.currency);
+      let text = def.name + ": " + (def.prestige && def.prestige.type === "rank" ? formatWhole(player[id][def.currency]) : amountText(id, player[id][def.currency]));
       if (player[id].resets) text += " (" + formatWhole(player[id].resets) + " resets)";
       setText(rows[id], text);
     }

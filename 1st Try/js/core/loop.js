@@ -14,6 +14,7 @@ function calc(dt) {
     const def = LAYERS[id];
     if (def.tick && tmp[id].unlocked) def.tick(dt);
   }
+  runAutomation(dt);
 }
 
 function gameTick() {
@@ -55,7 +56,7 @@ function simulateTime(seconds) {
   for (const id of LAYER_ORDER) {
     const def = LAYERS[id];
     const gained = player[id][def.currency].sub(before[id]);
-    if (gained.gt(0)) lines.push("+" + format(gained) + " " + (def.currencyName || def.currency));
+    if (gained.gt(0)) lines.push("+" + amountText(id, gained));
   }
   showModal({
     title: "Welcome back!",
