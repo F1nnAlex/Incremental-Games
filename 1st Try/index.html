@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Incremental Game</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header id="header">
+    <div id="headerAmount" class="header-amount"></div>
+    <div id="headerRate" class="header-rate"></div>
+  </header>
+
+  <nav id="tabBar"></nav>
+  <main id="tabContainer"></main>
+
+  <div id="modalRoot"></div>
+  <div id="notifications"></div>
+
+  <!-- Library -->
+  <script src="lib/break_eternity.js"></script>
+
+  <!-- Engine (order matters) -->
+  <script src="js/core/decimal.js"></script>
+  <script src="js/core/format.js"></script>
+  <script src="js/core/layers.js"></script>
+  <script src="js/core/player.js"></script>
+  <script src="js/core/save.js"></script>
+  <script src="js/core/ui.js"></script>
+  <script src="js/core/tabs.js"></script>
+  <script src="js/core/hotkeys.js"></script>
+  <script src="js/core/loop.js"></script>
+
+  <!-- Game content: one file per layer, in layer order -->
+  <script src="js/content/main.js"></script>
+
+  <!-- Start -->
+  <script src="js/game.js"></script>
+</body>
+</html>
