@@ -2,7 +2,7 @@
 // Layer data lives in player[layerId] (built from each layer's startData()).
 
 // Bump this whenever the save format changes, and add a migration in save.js.
-const SAVE_VERSION = 1;
+const SAVE_VERSION = 2;
 
 let player;
 

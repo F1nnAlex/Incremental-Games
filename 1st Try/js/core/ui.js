@@ -400,7 +400,7 @@ function buildUpgradesTab(panel) {
       const { id, def } = col;
       setVisible(col.el, !!tmp[id].unlocked);
       if (!tmp[id].unlocked) continue;
-      setText(col.have, "You have " + amountText(id, player[id][def.currency]));
+      setText(col.have, def.upgradesHaveText ? def.upgradesHaveText() : "You have " + amountText(id, player[id][def.currency]));
       for (const key in col.tiles) {
         const tile = col.tiles[key];
         const unl = tmp[id].upgrades[key].unlocked;
@@ -442,5 +442,56 @@ function buildUpgradesTab(panel) {
     setText(d.desc, resolve(u.desc) || "");
     setText(d.effect, u.effectDisplay ? "Currently: " + u.effectDisplay(tmp[id].upgrades[key].effect) : "");
     setText(d.cost, hasUpgrade(id, key) ? "Bought" : "Cost: " + costText(def, u, u.cost));
+  };
+}
+
+// ---------- Resource panel (IMR style, right side) ----------
+
+/**
+ * Lists every unlocked layer's resources. A layer can define resources() returning
+ * [{ label, value, sub }]; otherwise its currency (and rate) is shown. Click a row to open its tab.
+ */
+function buildResourcePanel(panel) {
+  panel.replaceChildren();
+  const groups = [];
+  for (const id of LAYER_ORDER) {
+    const def = LAYERS[id];
+    const group = h("div", { class: "res-group" });
+    if (def.color) group.style.setProperty("--layer", def.color);
+    groups.push({ id, def, group, rows: [] });
+    panel.append(group);
+  }
+
+  const defaultRows = (def) => {
+    const rate = def.rate ? def.rate() : null;
+    return [{
+      label: def.currencyName || def.currency,
+      value: amountText(def.id, player[def.id][def.currency]),
+      sub: rate ? "+" + amountText(def.id, rate) + "/s" : "",
+    }];
+  };
+
+  return function update() {
+    for (const g of groups) {
+      const unl = !!tmp[g.id].unlocked;
+      setVisible(g.group, unl);
+      if (!unl) continue;
+      const data = g.def.resources ? g.def.resources() : defaultRows(g.def);
+      // create rows lazily (the number of rows can grow, e.g. when gas unlocks)
+      while (g.rows.length < data.length) {
+        const r = { label: h("div", { class: "res-label" }), value: h("div", { class: "res-value" }), sub: h("div", { class: "res-sub" }) };
+        r.row = h("button", { class: "res-row", onclick: () => showTab(g.id) }, r.label, r.value, r.sub);
+        g.rows.push(r);
+        g.group.append(r.row);
+      }
+      g.rows.forEach((r, i) => {
+        const d = data[i];
+        setVisible(r.row, !!d);
+        if (!d) return;
+        setText(r.label, d.label);
+        setText(r.value, d.value);
+        setText(r.sub, d.sub || "");
+      });
+    }
   };
 }

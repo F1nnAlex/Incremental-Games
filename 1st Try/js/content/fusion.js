@@ -1,7 +1,7 @@
 // Layer 3: Fusion. From Brown Dwarf on, your core has a temperature. When it is hot enough,
 // lighter elements fuse into heavier ones, each at its real ignition temperature:
-//   H → He (10 MK) → C (100 MK) → O (200 MK) → Ne (600 MK) → Mg (1.2 GK) → Si (1.5 GK) → Fe (2.7 GK)
-// Other elements are *discovered* by meeting conditions, filling in the Periodic Table.
+//   H → He (10 MK) → C (100 MK) → O (200 MK)
+// Nitrogen is *discovered* through the CNO cycle. Heavier elements arrive in later updates.
 //
 // Reset: Stellar Wind. Your star blows its gas back into space and a new generation is born from
 // the enriched remains. You keep Stardust (and Shells, upgrades, discoveries).
@@ -13,15 +13,17 @@ const CHAIN = [
   { sym: "He", from: "H", ignite: 1e7, base: 1e-4 },
   { sym: "C", from: "He", ignite: 1e8, base: 1e-6 },
   { sym: "O", from: "C", ignite: 2e8, base: 1e-6 },
-  { sym: "Ne", from: "O", ignite: 6e8, base: 1e-7 },
-  { sym: "Mg", from: "Ne", ignite: 1.2e9, base: 1e-7 },
-  { sym: "Si", from: "Mg", ignite: 1.5e9, base: 1e-8 },
-  { sym: "Fe", from: "Si", ignite: 2.7e9, base: 1e-8 },
 ];
 const CHAIN_BY_SYM = Object.fromEntries(CHAIN.map((c) => [c.sym, c]));
 
 // [first cost, cost growth] in Stardust. Each level doubles that element's fusion.
-const SHELL_COSTS = { He: [1, 5], C: [5, 6], O: [20, 8], Ne: [100, 10], Mg: [500, 12], Si: [2500, 15], Fe: [1e4, 20] };
+const SHELL_COSTS = { He: [1, 5], C: [5, 6], O: [20, 8] };
+
+// Balance knobs for the element effects
+const ELEM = {
+  oxygenStardust: 5, // Stardust gain ×(1 + log₁₀ O / this)
+  nitrogenAt: 1e28, // kg of Oxygen needed to discover Nitrogen (the CNO cycle)
+};
 
 /** log10(amount + 1) of an element. */
 function elemLog(sym) {
@@ -38,7 +40,7 @@ function isDiscovered(sym) {
 }
 
 function discover(sym, silent = false) {
-  if (isDiscovered(sym)) return;
+  if (isDiscovered(sym) || !ELEMENT_INFO[sym]) return;
   player.fusion.discovered.push(sym);
   if (!silent) notify("Discovered " + ELEMENT_INFO[sym].name + " (" + sym + ")! " + ELEMENT_INFO[sym].effect());
 }
@@ -50,14 +52,11 @@ function fusionUnlocked() {
 /** Core temperature in kelvin. Heavier bodies have hotter cores. */
 function coreTemp() {
   if (!fusionUnlocked()) return E(0);
-  // Heavier stars have hotter cores. Mass only counts up to your next form's requirement,
-  // so every star form unlocks its own burning phase.
+  // Mass only counts up to your next form's requirement, so every star form unlocks its own burning phase.
   const cap = STAGES[Math.min(evo() + 1, MAX_STAGE)].mass;
   let t = E(1e7).mul(player.accretion.mass.min(cap).div(1.6e29).pow(0.8));
   t = t.mul(buyableEffect("fusion", "compression"));
   if (hasMilestone("evolution", "e17")) t = t.mul(1.5);
-  t = t.mul(elemLog("Mg").div(100).add(1));
-  if (isDiscovered("P")) t = t.mul(1.2);
   return t;
 }
 
@@ -72,15 +71,12 @@ function fusionRate(sym) {
   r = r.mul(allFusionMult());
   if (sym === "He" && isDiscovered("N")) r = r.mul(10);
   if (sym === "C" && hasUpgrade("fusion", 4)) r = r.mul(elemLog("He").add(1));
-  if (sym === "Si" && isDiscovered("S")) r = r.mul(5);
   return r;
 }
 
 function allFusionMult() {
   let m = E(1);
-  m = m.mul(elemLog("Si").add(1).sqrt());
   if (hasMilestone("evolution", "e18")) m = m.mul(3);
-  if (isDiscovered("Ti")) m = m.mul(2);
   if (hasUpgrade("fusion", 8)) m = m.mul(player.fusion.discovered.length);
   return m;
 }
@@ -120,17 +116,16 @@ function fusionMassMult() {
   return m;
 }
 
-function fusionGasMult() {
-  let m = elemLog("O").add(1);
-  if (hasUpgrade("fusion", 3)) m = m.mul(10);
-  if (isDiscovered("B")) m = m.mul(5);
+/** Oxygen and Deep Convection boost gas gain. */
+function fusionEnvelopeMult() {
+  let m = elemLog("O").div(10).add(1);
+  if (hasUpgrade("fusion", 3)) m = m.mul(2);
   return m;
 }
 
 function fusionShardMult() {
   let m = elemLog("C").add(1);
   if (hasUpgrade("fusion", 2)) m = m.mul(totalStardust().add(1).sqrt());
-  if (isDiscovered("Li")) m = m.mul(3);
   return m;
 }
 
@@ -141,93 +136,67 @@ function fusionSoftcapDelay() {
 }
 
 function fusionSoftcapPowerBonus() {
-  let p = 0;
-  if (hasUpgrade("fusion", 5)) p += 0.05;
-  if (isDiscovered("Ca")) p += 0.05;
-  return p;
+  return hasUpgrade("fusion", 5) ? 0.05 : 0;
 }
 
 function fusionGravityBonus() {
-  return isDiscovered("Be") ? 0.002 : 0;
+  return 0;
+}
+
+function oxygenStardustMult() {
+  return elemLog("O").div(ELEM.oxygenStardust).add(1);
 }
 
 function stardustMult() {
   // Bigger stars blow stronger winds: Red Dwarf ×2, Yellow Dwarf ×3, Blue Giant ×4, Supergiant ×5
   let m = E(Math.max(1, evo() - 13));
   if (hasMilestone("evolution", "e16")) m = m.mul(2);
-  m = m.mul(elemLog("Ne").div(10).add(1));
-  m = m.mul(elemLog("Fe").div(20).add(1));
-  if (isDiscovered("Na")) m = m.mul(1.5);
-  if (isDiscovered("Ar")) m = m.mul(2);
-  if (isDiscovered("Cr")) m = m.mul(2);
+  m = m.mul(oxygenStardustMult());
   if (hasMilestone("fusion", "w12")) m = m.mul(Decimal.pow(1.1, player.fusion.discovered.length));
   if (hasUpgrade("fusion", 9)) m = m.mul(Decimal.pow(1.05, totalMilestonesReached()));
   return m;
 }
 
-/** Stellar Wind carries your nuclei into space, where cosmic rays split them into Li, Be and B (spallation). */
-function checkSpallation() {
-  if (!player.fusion) return;
-  if (amountOf("C").gte(1e20)) discover("Li");
-  if (amountOf("O").gte(1e20)) discover("Be");
-  if (amountOf("Ne").gte(1e20)) discover("B");
-}
+// ---------- Elements ----------
 
-// ---------- The periodic table (periods 1–4) ----------
-
+// Periods 1–2 in the compact layout: [symbol, atomic number, name, row, column (1–8)]
 const TABLE = [
-  ["H", 1, "Hydrogen", 1, 1], ["He", 2, "Helium", 1, 18],
-  ["Li", 3, "Lithium", 2, 1], ["Be", 4, "Beryllium", 2, 2], ["B", 5, "Boron", 2, 13], ["C", 6, "Carbon", 2, 14],
-  ["N", 7, "Nitrogen", 2, 15], ["O", 8, "Oxygen", 2, 16], ["F", 9, "Fluorine", 2, 17], ["Ne", 10, "Neon", 2, 18],
-  ["Na", 11, "Sodium", 3, 1], ["Mg", 12, "Magnesium", 3, 2], ["Al", 13, "Aluminium", 3, 13], ["Si", 14, "Silicon", 3, 14],
-  ["P", 15, "Phosphorus", 3, 15], ["S", 16, "Sulfur", 3, 16], ["Cl", 17, "Chlorine", 3, 17], ["Ar", 18, "Argon", 3, 18],
-  ["K", 19, "Potassium", 4, 1], ["Ca", 20, "Calcium", 4, 2], ["Sc", 21, "Scandium", 4, 3], ["Ti", 22, "Titanium", 4, 4],
-  ["V", 23, "Vanadium", 4, 5], ["Cr", 24, "Chromium", 4, 6], ["Mn", 25, "Manganese", 4, 7], ["Fe", 26, "Iron", 4, 8],
-  ["Co", 27, "Cobalt", 4, 9], ["Ni", 28, "Nickel", 4, 10], ["Cu", 29, "Copper", 4, 11], ["Zn", 30, "Zinc", 4, 12],
-  ["Ga", 31, "Gallium", 4, 13], ["Ge", 32, "Germanium", 4, 14], ["As", 33, "Arsenic", 4, 15], ["Se", 34, "Selenium", 4, 16],
-  ["Br", 35, "Bromine", 4, 17], ["Kr", 36, "Krypton", 4, 18],
+  ["H", 1, "Hydrogen", 1, 1], ["He", 2, "Helium", 1, 8],
+  ["Li", 3, "Lithium", 2, 1], ["Be", 4, "Beryllium", 2, 2], ["B", 5, "Boron", 2, 3], ["C", 6, "Carbon", 2, 4],
+  ["N", 7, "Nitrogen", 2, 5], ["O", 8, "Oxygen", 2, 6], ["F", 9, "Fluorine", 2, 7], ["Ne", 10, "Neon", 2, 8],
 ];
 
-// What each obtainable element does and how you get it. kind: fuel | fusion | discovery | spallation
+// The elements you can get right now. kind: fuel | fusion | discovery. Everything else comes in later updates.
 const ELEMENT_INFO = {
-  H: { kind: "fuel", how: () => "Your fuel: " + Math.round(HYDROGEN_FRACTION * 100) + "% of your mass (up to a Supergiant's).", effect: () => "Fused into Helium once your core reaches 10 MK." },
-  He: { kind: "fusion", effect: () => "Mass gain softcap starts " + formatMult(amountOf("He").add(1).pow(0.01)) + " later." },
-  C: { kind: "fusion", effect: () => "Shard gain " + formatMult(elemLog("C").add(1)) + "." },
-  O: { kind: "fusion", effect: () => "Gas gain " + formatMult(elemLog("O").add(1)) + "." },
-  Ne: { kind: "fusion", effect: () => "Stardust gain " + formatMult(elemLog("Ne").div(10).add(1)) + "." },
-  Mg: { kind: "fusion", effect: () => "Core temperature " + formatMult(elemLog("Mg").div(100).add(1), 3) + "." },
-  Si: { kind: "fusion", effect: () => "All fusion " + formatMult(elemLog("Si").add(1).sqrt()) + "." },
-  Fe: { kind: "fusion", effect: () => "Stardust gain " + formatMult(elemLog("Fe").div(20).add(1)) + ". Iron is where fusion ends." },
-  Li: { kind: "spallation", need: "Release a Stellar Wind carrying " + formatMass(1e20) + " of Carbon.", effect: () => "Shard gain ×3." },
-  Be: { kind: "spallation", need: "Release a Stellar Wind carrying " + formatMass(1e20) + " of Oxygen.", effect: () => "Gravity Well +0.002 per level." },
-  B: { kind: "spallation", need: "Release a Stellar Wind carrying " + formatMass(1e20) + " of Neon.", effect: () => "Gas gain ×5." },
-  N: { kind: "discovery", need: "Have " + formatMass(1e24) + " of Oxygen (the CNO cycle).", check: () => amountOf("O").gte(1e24), effect: () => "Helium fusion ×10." },
-  Na: { kind: "discovery", need: "Have " + formatMass(1e24) + " of Neon.", check: () => amountOf("Ne").gte(1e24), effect: () => "Stardust gain ×1.5." },
-  Al: { kind: "discovery", need: "Have " + formatMass(1e24) + " of Magnesium.", check: () => amountOf("Mg").gte(1e24), effect: () => "Shells are 3× cheaper." },
-  P: { kind: "discovery", need: "Have " + formatMass(1e24) + " of Silicon.", check: () => amountOf("Si").gte(1e24), effect: () => "Core temperature ×1.2." },
-  S: { kind: "discovery", need: "Have " + formatMass(1e28) + " of Silicon.", check: () => amountOf("Si").gte(1e28), effect: () => "Silicon fusion ×5." },
-  Ar: { kind: "discovery", need: "Have " + formatMass(1e32) + " of Silicon.", check: () => amountOf("Si").gte(1e32), effect: () => "Stardust gain ×2." },
-  Ca: { kind: "discovery", need: "Have " + formatMass(1e24) + " of Iron.", check: () => amountOf("Fe").gte(1e24), effect: () => "The mass gain softcap is weaker (+0.05)." },
-  Ti: { kind: "discovery", need: "Have " + formatMass(1e28) + " of Iron.", check: () => amountOf("Fe").gte(1e28), effect: () => "All fusion ×2." },
-  Cr: { kind: "discovery", need: "Have " + formatMass(1e32) + " of Iron.", check: () => amountOf("Fe").gte(1e32), effect: () => "Stardust gain ×2." },
-  Ni: { kind: "discovery", need: "Have " + formatMass(1e36) + " of Iron.", check: () => amountOf("Fe").gte(1e36), effect: () => "Your iron core is enormous. A Supernova is coming…" },
+  H: { kind: "fuel", effect: () => "Fused into Helium once your core reaches 10 MK." },
+  He: { kind: "fusion", about: "Makes the mass gain softcap start later.", effect: () => "Mass gain softcap starts " + formatMult(amountOf("He").add(1).pow(0.01)) + " later." },
+  C: { kind: "fusion", about: "Boosts Shard gain.", effect: () => "Shard gain " + formatMult(elemLog("C").add(1)) + "." },
+  O: { kind: "fusion", about: "Boosts Stardust gain and gas gain.", effect: () => "Stardust gain " + formatMult(oxygenStardustMult()) + " and gas gain " + formatMult(elemLog("O").div(10).add(1)) + "." },
+  N: {
+    kind: "discovery",
+    about: "Helium fusion ×10.",
+    need: () => "Discovered when you have " + formatMass(ELEM.nitrogenAt) + " of Oxygen (the CNO cycle). You have " + formatMass(amountOf("O")) + ".",
+    check: () => amountOf("O").gte(ELEM.nitrogenAt),
+    effect: () => "Helium fusion ×10.",
+  },
 };
 for (const [sym, , name] of TABLE) if (ELEMENT_INFO[sym]) ELEMENT_INFO[sym].name = name;
+const OBTAINABLE = Object.keys(ELEMENT_INFO);
 
-function elementHow(sym) {
+/** Short status of an element: what it does now, or what you still need. */
+function elementStatus(sym) {
   const info = ELEMENT_INFO[sym];
-  if (!info) {
-    const z = TABLE.find((e) => e[0] === sym)[1];
-    return z > 26
-      ? "Heavier than iron. No star can fuse it. Forged only in something far more violent…"
-      : "Not made in the cores of stars like you.";
+  if (info.kind === "fuel") return { state: "fusing", text: Math.round(HYDROGEN_FRACTION * 100) + "% of your mass is hydrogen, your fuel." };
+  if (info.kind === "discovery") {
+    return isDiscovered(sym) ? { state: "found", text: "Discovered." } : { state: "todo", text: info.need() };
   }
-  if (info.kind === "fuel") return info.how();
-  if (info.kind === "fusion") {
-    const c = CHAIN_BY_SYM[sym];
-    return "Fused from " + ELEMENT_INFO[c.from].name + " once your core reaches " + formatTemp(c.ignite) + ".";
-  }
-  return info.need;
+  const c = CHAIN_BY_SYM[sym];
+  const t = tmp.fusion.temp;
+  const fusing = fusionRate(sym).gt(0);
+  if (fusing) return { state: "fusing", text: "Fusing from " + ELEMENT_INFO[c.from].name + "." };
+  if (isDiscovered(sym)) return { state: "found", text: "Needs a " + formatTemp(c.ignite) + " core to keep fusing (yours: " + formatTemp(t) + ")." };
+  const hint = c.ignite <= 1e7 ? " Become a Red Dwarf to ignite." : c.ignite <= 1e8 ? " A Yellow Dwarf's core gets there." : " Grow your star and use Compression to get there.";
+  return { state: "todo", text: "Needs a " + formatTemp(c.ignite) + " core (yours: " + formatTemp(t) + ")." + hint };
 }
 
 // ---------- Layer ----------
@@ -240,7 +209,7 @@ for (const c of CHAIN) {
     desc: () => "A layer of your core that fuses " + ELEMENT_INFO[c.from].name + " into " + ELEMENT_INFO[c.sym].name + ". ×2 " + ELEMENT_INFO[c.sym].name + " fusion per level.",
     unlocked: () => isDiscovered(c.sym),
     noSpend: () => hasMilestone("fusion", "w10"),
-    costStart: () => start / (isDiscovered("Al") ? 3 : 1),
+    costStart: start,
     costGrowth: growth,
     effect: (amount) => Decimal.pow(2, amount),
     effectDisplay: (eff) => formatMult(eff),
@@ -265,6 +234,12 @@ registerLayer({
     windTarget: RED_DWARF_STAGE, // Auto Stellar Wind waits until you are at least this form
   }),
 
+  resources: () => [
+    { label: "Stardust", value: formatWhole(player.fusion.stardust), sub: formatWhole(totalStardust()) + " total" },
+    { label: "Core temperature", value: formatTemp(tmp.fusion.temp), sub: "" },
+    { label: "Elements", value: OBTAINABLE.filter(isDiscovered).length + " / " + OBTAINABLE.length, sub: "Stellar Winds: " + generations() },
+  ],
+
   layerHeader: () => [
     "You have ",
     amountText("fusion", player.fusion.stardust),
@@ -284,7 +259,7 @@ registerLayer({
       evo() >= RED_DWARF_STAGE
         ? "Blow your gas back into space. A new generation is born from your Stardust."
         : null,
-    resets: ["accretion", "evolution", "collision"],
+    resets: ["accretion", "evolution", "atmosphere", "collision"],
     keep: (layer) => {
       if (layer === "accretion" && hasMilestone("fusion", "w2")) return ["upgrades"];
       if (layer === "collision" && hasMilestone("fusion", "w4")) return ["upgrades"];
@@ -292,7 +267,6 @@ registerLayer({
     },
     onReset: (gain) => {
       player.fusion.totalStardust = player.fusion.totalStardust.add(gain);
-      checkSpallation();
       // Elements fly away with the wind (12 winds: keep 10%)
       const keep = hasMilestone("fusion", "w9") ? 0.1 : 0;
       for (const c of CHAIN) player.fusion.elements[c.sym] = player.fusion.elements[c.sym].mul(keep);
@@ -334,7 +308,7 @@ registerLayer({
       effect: () => totalStardust().add(1).sqrt(),
       effectDisplay: (eff) => formatMult(eff),
     },
-    3: { icon: "↺", title: "Deep Convection", desc: "Hot gas rises and cold gas sinks. Gas gain ×10.", cost: E(5) },
+    3: { icon: "↺", title: "Deep Convection", desc: "Hot gas rises and cold gas sinks. Gas gain ×2.", cost: E(5) },
     4: {
       title: "Triple-Alpha",
       icon: "3α",
@@ -378,7 +352,7 @@ registerLayer({
     w3: { req: () => generations() >= 3, reqText: "3 Stellar Winds", desc: "Start every generation with 12 collisions." },
     w4: { req: () => generations() >= 4, reqText: "4 Stellar Winds", desc: "Keep Shard upgrades on Stellar Wind. Unlock Auto Shard Upgrades." },
     w5: { req: () => generations() >= 5, reqText: "5 Stellar Winds", desc: "Auto Evolve works past Planet." },
-    w6: { req: () => generations() >= 6, reqText: "6 Stellar Winds", desc: "Unlock Auto Gas Envelope and Auto Storm Bands. Storm Bands no longer spend gas." },
+    w6: { req: () => generations() >= 6, reqText: "6 Stellar Winds", desc: "Unlock Auto Climb and auto-buyers for every Atmosphere building. They no longer spend gas." },
     w7: { req: () => generations() >= 8, reqText: "8 Stellar Winds", desc: "Start every generation as a Planet." },
     w8: { req: () => generations() >= 10, reqText: "10 Stellar Winds", desc: "Unlock Auto Compression, Auto Shells and Auto Fusion Upgrades." },
     w9: { req: () => generations() >= 12, reqText: "12 Stellar Winds", desc: "Keep 10% of your elements on Stellar Wind." },
@@ -459,79 +433,84 @@ registerLayer({
 
 // ---------- Periodic Table sub-tab ----------
 
+/**
+ * A compact view of periods 1–2. Everything is visible at once: the grid shows which elements
+ * you have, and the list below says what each one does and what you need for the next.
+ */
 function buildPeriodicTable(panel) {
-  let selected = "H";
-  const count = h("span", { class: "pt-count" });
+  const count = h("span", { class: "amount" });
   const temp = h("span");
-  panel.append(h("div", { class: "layer-header" }, "Discovered ", count, " of " + TABLE.length + " elements. Core temperature: ", temp));
+  panel.append(h("div", { class: "layer-header" }, "Elements found: ", count, " of " + OBTAINABLE.length + ". Core temperature: ", temp));
 
   const grid = h("div", { class: "pt-grid" });
   const cells = {};
-  for (const [sym, z, name, period, group] of TABLE) {
+  for (const [sym, z, name, row, col] of TABLE) {
     const amount = h("div", { class: "pt-amount" });
     const cell = h(
-      "button",
-      { class: "pt-cell", style: "grid-row:" + period + ";grid-column:" + group, title: name, onclick: () => (selected = sym) },
+      "div",
+      { class: "pt-cell", style: "grid-row:" + row + ";grid-column:" + col, title: name },
       h("div", { class: "pt-z" }, String(z)),
-      h("div", { class: "pt-sym" }, sym),
+      h("div", { class: "pt-sym" }, ELEMENT_INFO[sym] ? sym : "·"),
       amount
     );
-    const info = ELEMENT_INFO[sym];
-    cell.classList.add("kind-" + (info ? info.kind : "locked"));
+    if (!ELEMENT_INFO[sym]) cell.classList.add("future");
     cells[sym] = { cell, amount };
     grid.append(cell);
   }
-
-  // The detail panel sits in the gap at the top of the table, like the key on a real one
-  const d = {
-    title: h("div", { class: "pt-detail-title" }),
-    kind: h("div", { class: "pt-detail-kind" }),
-    how: h("div", { class: "pt-detail-line" }),
-    amount: h("div", { class: "pt-detail-line pt-detail-amount" }),
-    effect: h("div", { class: "pt-detail-line pt-detail-effect" }),
-  };
-  grid.append(h("div", { class: "pt-detail" }, d.title, d.kind, d.how, d.amount, d.effect));
   panel.append(grid);
+  panel.append(h("p", { class: "pt-later" }, "Faint cells are elements for later. Heavier elements need a hotter, more violent star."));
 
-  const legend = h("div", { class: "pt-legend" },
-    h("span", { class: "kind-fusion" }, "Fusion"),
-    h("span", { class: "kind-discovery" }, "Discovery"),
-    h("span", { class: "kind-spallation" }, "Split by cosmic rays"),
-    h("span", { class: "kind-locked" }, "Not yet possible")
-  );
-  panel.append(legend);
+  panel.append(h("h3", {}, "Your elements"));
+  const list = h("div", { class: "pt-rows" });
+  const rows = {};
+  for (const sym of OBTAINABLE) {
+    const r = {
+      sym: h("div", { class: "pt-row-sym" }, sym),
+      name: h("div", { class: "pt-row-name" }, ELEMENT_INFO[sym].name),
+      state: h("div", { class: "pt-row-state" }),
+      amount: h("div", { class: "pt-row-amount" }),
+      text: h("div", { class: "pt-row-text" }),
+      effect: h("div", { class: "pt-row-effect" }),
+    };
+    r.row = h("div", { class: "pt-row" }, r.sym, h("div", { class: "pt-row-body" }, h("div", { class: "pt-row-top" }, r.name, r.state, r.amount), r.text, r.effect));
+    rows[sym] = r;
+    list.append(r.row);
+  }
+  panel.append(list);
 
-  const KIND_TEXT = { fuel: "Fuel", fusion: "Fusion product", discovery: "Discovery", spallation: "Split by cosmic rays" };
+  const STATE_TEXT = { fusing: "Fusing", found: "Found", todo: "Not yet" };
 
   return function update() {
-    setText(count, String(player.fusion.discovered.length));
+    setText(count, String(OBTAINABLE.filter(isDiscovered).length));
     setText(temp, formatTemp(tmp.fusion.temp));
-    for (const [sym] of TABLE) {
-      const c = cells[sym];
-      const found = isDiscovered(sym);
-      setClass(c.cell, "found", found);
-      setClass(c.cell, "selected", sym === selected);
-      const info = ELEMENT_INFO[sym];
-      let text = "";
-      if (found && info && (info.kind === "fusion" || info.kind === "fuel")) text = formatShortMass(amountOf(sym));
-      else if (found) text = "✓";
-      setText(c.amount, text);
-    }
-    const [sym, z, name] = TABLE.find((e) => e[0] === selected);
-    const info = ELEMENT_INFO[sym];
-    const found = isDiscovered(sym);
-    setText(d.title, name + " (" + sym + ", " + z + ")");
-    setText(d.kind, info ? KIND_TEXT[info.kind] + (found ? "" : ", not discovered yet") : "Unknown");
-    setText(d.how, elementHow(sym));
-    if (info && (info.kind === "fusion" || info.kind === "fuel") && found) {
-      let line = "You have " + formatMass(amountOf(sym));
-      if (info.kind === "fusion") {
-        const c = CHAIN_BY_SYM[sym];
-        const rate = fusionRate(sym);
-        line += rate.gt(0) ? " (+" + formatMass(amountOf(c.from).mul(rate)) + "/s)" : " (core too cold to fuse right now)";
+
+    // Show found elements plus the next one you can work towards (in chain order)
+    let shownTodo = false;
+    for (const sym of ["H", "He", "C", "O", "N"]) {
+      const r = rows[sym];
+      const s = elementStatus(sym);
+      const visible = s.state !== "todo" || !shownTodo;
+      if (s.state === "todo" && visible) shownTodo = true;
+      setVisible(r.row, visible);
+      setClass(r.row, "state-" + s.state, true);
+      for (const other of ["fusing", "found", "todo"]) if (other !== s.state) setClass(r.row, "state-" + other, false);
+      setText(r.state, STATE_TEXT[s.state]);
+      const fusionEl = CHAIN_BY_SYM[sym];
+      let amountText_ = "";
+      if (ELEMENT_INFO[sym].kind === "fuel" || (fusionEl && isDiscovered(sym))) {
+        amountText_ = formatMass(amountOf(sym));
+        if (fusionEl && s.state === "fusing") amountText_ += " (+" + formatMass(amountOf(fusionEl.from).mul(fusionRate(sym))) + "/s)";
       }
-      setText(d.amount, line);
-    } else setText(d.amount, "");
-    setText(d.effect, info ? (found ? "" : "Will give: ") + info.effect() : "");
+      setText(r.amount, amountText_);
+      setText(r.text, s.text);
+      setText(r.effect, s.state === "todo" ? "Will give: " + ELEMENT_INFO[sym].about : ELEMENT_INFO[sym].effect());
+
+      const c = cells[sym];
+      setClass(c.cell, "fusing", s.state === "fusing");
+      setClass(c.cell, "found", s.state === "found");
+      setClass(c.cell, "todo", s.state === "todo");
+      c.cell.title = ELEMENT_INFO[sym].name + ": " + s.text;
+      setText(c.amount, s.state === "todo" ? "" : ELEMENT_INFO[sym].kind === "discovery" ? "✓" : formatShortMass(amountOf(sym)));
+    }
   };
 }

@@ -1,10 +1,13 @@
 // Entry point: load the save, build the UI, start the loop.
 
 /** Rebuild everything after the player object is replaced (load/import/hard reset). */
+let updateResources = () => {};
+
 function afterLoad() {
   tmp = {};
   updateTemp();
   buildTabs();
+  updateResources = buildResourcePanel(document.getElementById("resources"));
   updateUI();
 }
 
@@ -15,6 +18,7 @@ function updateUI() {
   setText(document.getElementById("headerRate"), rate ? "+" + amountText(main.id, rate) + "/s" : "");
   setText(document.getElementById("headerText"), main.headerText ? main.headerText() : "");
   updateTabs();
+  updateResources();
 }
 
 function init() {

@@ -6,7 +6,16 @@ const AUTOSAVE_SECONDS = 30;
 // Migrations: MIGRATIONS[n] upgrades a raw (parsed) save from version n-1 to n.
 // Example for later:
 //   2: (s) => { s.main.oldName = s.main.newName; delete s.main.oldName; },
-const MIGRATIONS = {};
+const MIGRATIONS = {
+  // v2: the Periodic Table was trimmed to H, He, C, N and O (heavier elements come in later updates)
+  2: (s) => {
+    const keep = ["H", "He", "C", "N", "O"];
+    if (s.fusion) {
+      if (Array.isArray(s.fusion.discovered)) s.fusion.discovered = s.fusion.discovered.filter((x) => keep.includes(x));
+      // removed elements and Shells are dropped automatically when the save is merged
+    }
+  },
+};
 
 function encodeSave(obj) {
   const json = JSON.stringify(obj); // Decimals serialize to strings via toJSON()

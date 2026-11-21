@@ -13,7 +13,10 @@ function buildTabs() {
     const panel = h("section", { class: "tab-panel", id: "tab-" + id });
     const button = h("button", { class: "tab-btn", onclick: () => showTab(id) }, label);
     if (system) button.dataset.system = system;
-    if (color) button.style.setProperty("--tab-color", color);
+    if (color) {
+      button.style.setProperty("--tab-color", color);
+      button.dataset.layer = id;
+    }
     const update = build(panel);
     bar.append(button);
     container.append(panel);
@@ -24,7 +27,7 @@ function buildTabs() {
     const def = LAYERS[id];
     add(id, def.name, () => tmp[id].unlocked, (panel) => buildLayerTab(def, panel), def.color);
   }
-  add("upgrades", "Upgrades", () => true, buildUpgradesTab, "#e4e7ef");
+  add("upgrades", "Upgrades", () => true, buildUpgradesTab, null, "tool");
   add("stats", "Stats", () => true, buildStatsTab, null, "first");
   add("options", "Options", () => true, buildOptionsTab, null, "rest");
 

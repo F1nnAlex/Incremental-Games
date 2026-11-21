@@ -2,7 +2,8 @@
 // Collision (layer 2) and Stellar Wind (layer 3) send you back to the start.
 
 const STAGES = [
-  // mass = kg of mass needed, gas = kg of gas needed (gas giants), stardust = lifetime Stardust needed (big stars),
+  // mass = kg of total mass needed (core + envelope), atmo = Atmosphere Level needed,
+  // stardust = lifetime Stardust needed (big stars),
   // size/color = how "you" look,
   // star = glows like a star, fact = real-world comparison
   { name: "Dust Speck", mass: 0, size: 5, color: "#9a8f80", fact: "Smaller than the width of a human hair." },
@@ -15,15 +16,16 @@ const STAGES = [
   { name: "Protoplanet", mass: 1e20, size: 25, color: "#e0612f", fact: "A glowing ball of molten rock, hundreds of kilometres across." },
   { name: "Dwarf Planet", mass: 1e22, size: 27, color: "#cbbba7", fact: "Almost as massive as Pluto." },
   { name: "Planet", mass: 5.972e24, size: 30, color: "#4a9be4", fact: "As massive as Earth." }, // 1 M⊕
-  { name: "Super-Earth", mass: 3e25, size: 32, color: "#3fb6a8", fact: "Five Earths of mass. Worlds like this are common around other stars." },
-  { name: "Ice Giant", mass: 1e26, gas: 1e24, size: 35, color: "#7fd6e8", fact: "Like Neptune: rock and ice wrapped in a thick blanket of gas." },
-  { name: "Gas Giant", mass: 1.898e27, gas: 1e26, size: 39, color: "#d9a066", fact: "As massive as Jupiter, made mostly of hydrogen and helium." }, // 1 M♃
-  { name: "Super-Jupiter", mass: 1e28, gas: 1e27, size: 41, color: "#c47f4e", fact: "Five Jupiters of mass. The pressure in your core is immense." },
-  { name: "Brown Dwarf", mass: 2.5e28, gas: 5e27, size: 42, color: "#8a4b3a", fact: "Too small to be a true star, but warm enough to fuse deuterium." },
+  // From Super-Earth on, "mass" means your TOTAL mass: core + gas envelope
+  { name: "Super-Earth", mass: 5 * 5.972e24, size: 32, color: "#3fb6a8", fact: "Five Earths of mass. Worlds like this are common around other stars." },
+  { name: "Ice Giant", mass: 15 * 5.972e24, atmo: 4, size: 35, color: "#7fd6e8", fact: "Like Neptune: rock and ice wrapped in a thick blanket of gas." },
+  { name: "Gas Giant", mass: 300 * 5.972e24, atmo: 7, size: 39, color: "#d9a066", fact: "As massive as Jupiter, made mostly of hydrogen and helium." }, // 1 M♃
+  { name: "Super-Jupiter", mass: 5 * 1.898e27, size: 41, color: "#c47f4e", fact: "Five Jupiters of mass. The pressure in your core is immense." },
+  { name: "Brown Dwarf", mass: 13 * 1.898e27, size: 42, color: "#8a4b3a", fact: "Too small to be a true star, but warm enough to fuse deuterium." },
   { name: "Red Dwarf", mass: 1.6e29, size: 44, color: "#ff5a36", star: true, fact: "The smallest true star. Hydrogen fusion lights you up." }, // 0.08 M☉
   { name: "Yellow Dwarf", mass: 1.989e30, stardust: 20, size: 46, color: "#ffd75e", star: true, fact: "As massive as the Sun." }, // 1 M☉
-  { name: "Blue Giant", mass: 2e31, stardust: 3e4, size: 48, color: "#9ec9ff", star: true, fact: "Ten Suns of mass, burning hot and blue." },
-  { name: "Supergiant", mass: 5e31, stardust: 1e7, size: 50, color: "#ff8a4a", star: true, fact: "One of the biggest stars in the galaxy. Your core can forge iron." },
+  { name: "Blue Giant", mass: 2e31, stardust: 1.5e4, size: 48, color: "#9ec9ff", star: true, fact: "Ten Suns of mass, burning hot and blue." },
+  { name: "Supergiant", mass: 5e31, stardust: 1e5, size: 50, color: "#ff8a4a", star: true, fact: "One of the biggest stars in the galaxy." },
 ];
 const MAX_STAGE = STAGES.length - 1;
 const PLANET_STAGE = 9;
@@ -42,10 +44,16 @@ function stageName(n = evo()) {
 function stageReady(n) {
   const s = STAGES[n];
   if (!s) return false;
-  if (player.accretion.mass.lt(s.mass)) return false;
-  if (s.gas && player.accretion.gas.lt(s.gas)) return false;
+  if (totalMass().lt(stageMassNeeded(n))) return false;
+  if (s.atmo && atmoLevel() < s.atmo) return false;
   if (s.stardust && totalStardust().lt(s.stardust)) return false;
   return true;
+}
+
+/** Mass needed for form n (Ignition Pressure, Atmosphere Level 12, lowers the Red Dwarf requirement). */
+function stageMassNeeded(n) {
+  const m = STAGES[n].mass;
+  return n === RED_DWARF_STAGE && hasAtmoLevel(12) ? m * 0.9 : m;
 }
 
 /** Highest form you could evolve to right now (forms must be reached in order). */
@@ -62,8 +70,8 @@ function autoEvolveCap() {
 
 function stageRequirementText(n) {
   const s = STAGES[n];
-  let text = formatMass(s.mass) + " of mass";
-  if (s.gas) text += " and " + formatMass(s.gas) + " of gas";
+  let text = formatMass(stageMassNeeded(n)) + (n > PLANET_STAGE ? " total" : " of mass");
+  if (s.atmo) text += " and Atmosphere Level " + s.atmo;
   if (s.stardust) text += " and " + formatWhole(s.stardust) + " total Stardust";
   return text;
 }
@@ -79,8 +87,8 @@ function evolutionProgress() {
     return Math.min(1, Math.max(0, p));
   };
   const next = STAGES[n + 1];
-  let p = logProgress(player.accretion.mass, STAGES[n].mass, next.mass);
-  if (next.gas) p = Math.min(p, logProgress(player.accretion.gas, STAGES[n].gas || 1e18, next.gas));
+  let p = logProgress(totalMass(), STAGES[n].mass, stageMassNeeded(n + 1));
+  if (next.atmo) p = Math.min(p, atmoLevel() / next.atmo);
   if (next.stardust) p = Math.min(p, logProgress(totalStardust().mul(PG), (STAGES[n].stardust || 1) * PG, next.stardust * PG));
   return p;
 }
@@ -123,8 +131,8 @@ function buildEvolutionViewer(panel) {
     setClass(orb, "star", !!s.star);
     setText(name, s.name);
     setText(step, "Evolution " + n + " of " + MAX_STAGE);
-    let massText = formatMass(player.accretion.mass);
-    if (n >= PLANET_STAGE) massText += " + " + formatMass(player.accretion.gas) + " of gas";
+    let massText = formatMass(totalMass());
+    if (envelopeMass().gt(0)) massText += " (" + formatMass(player.accretion.mass) + " core + " + formatGas(gasEarths()) + " of gas)";
     setText(mass, massText);
     setText(fact, s.fact);
     const p = evolutionProgress();
@@ -155,7 +163,7 @@ function evolveTo(target) {
 registerLayer({
   id: "evolution",
   name: "Evolution",
-  color: "#ffb74d",
+  color: "#b794f6",
   currency: "stage",
   currencyName: "Evolution",
   hotkey: "e",
@@ -163,6 +171,8 @@ registerLayer({
   startData: () => ({
     stage: E(0),
   }),
+
+  resources: () => [{ label: "Form", value: stageName(), sub: "Evolution " + evo() + " of " + MAX_STAGE }],
 
   layerHeader: () => {
     const name = stageName();
@@ -175,7 +185,7 @@ registerLayer({
     resource: () => E(stageReady(evo() + 1) ? 1 : 0),
     req: () => E(1),
     bulk: () => E(highestReadyStage()),
-    canBuyMax: () => hasUpgrade("collision", 3),
+    canBuyMax: () => hasMilestone("collision", "c7"),
     resets: [],
     buttonText: () => {
       if (evo() >= MAX_STAGE) return "Fully evolved (for now)";
@@ -199,16 +209,16 @@ registerLayer({
     e6: { at: 6, reqText: "Planetesimal", extra: formatMass(STAGES[6].mass), desc: "Your gravity takes over: unlock Gravity Well and Collision." },
     e7: { at: 7, reqText: "Protoplanet", extra: formatMass(STAGES[7].mass), desc: "Unlock Gravitational Focusing and Runaway Growth." },
     e8: { at: 8, reqText: "Dwarf Planet", extra: formatMass(STAGES[8].mass), desc: "Shards make Gravity Well stronger." },
-    e9: { at: 9, reqText: "Planet", extra: formatMass(STAGES[9].mass), desc: "Mass gain ×10. You grow an atmosphere: unlock Gas." },
+    e9: { at: 9, reqText: "Planet", extra: formatMass(STAGES[9].mass), desc: "Mass gain ×10. You can hold on to an atmosphere: unlock the Atmosphere tab and its ladder." },
     e10: { at: 10, reqText: "Super-Earth", extra: formatMass(STAGES[10].mass), desc: "Gas gain ×3." },
-    e11: { at: 11, reqText: "Ice Giant", extra: "+ " + formatMass(STAGES[11].gas) + " gas", desc: "Gas boosts Shard gain. Unlock Runaway Gas Accretion." },
-    e12: { at: 12, reqText: "Gas Giant", extra: "+ " + formatMass(STAGES[12].gas) + " gas", desc: () => "The weight of your gas compresses you: the mass gain softcap starts " + formatMult(gasSoftcapDelay()) + " later (at least ×10)." },
-    e13: { at: 13, reqText: "Super-Jupiter", extra: "+ " + formatMass(STAGES[13].gas) + " gas", desc: "Gravity Well is 25% stronger." },
-    e14: { at: 14, reqText: "Brown Dwarf", extra: "+ " + formatMass(STAGES[14].gas) + " gas", desc: "Deuterium burning heats your core: unlock Fusion and the Periodic Table. The mass gain softcap starts ×5 later." },
-    e15: { at: 15, reqText: "Red Dwarf", extra: formatMass(STAGES[15].mass), desc: "Hydrogen fusion ignites. You are a star! Unlock Stellar Wind. Each star form makes the mass softcap start ×100 later and boosts Stardust gain." },
+    e11: { at: 11, reqText: "Ice Giant", extra: formatMass(STAGES[11].mass), desc: "Needs Atmosphere Level 4. Shard gain ×3." },
+    e12: { at: 12, reqText: "Gas Giant", extra: formatMass(STAGES[12].mass), desc: "Needs Atmosphere Level 7. The mass gain softcap starts ×10 later." },
+    e13: { at: 13, reqText: "Super-Jupiter", extra: formatMass(STAGES[13].mass), desc: "Gravity Well is 25% stronger." },
+    e14: { at: 14, reqText: "Brown Dwarf", extra: formatMass(STAGES[14].mass), desc: "Deuterium burning heats your core: unlock Fusion and the Periodic Table. The mass gain softcap starts ×5 later." },
+    e15: { at: 15, reqText: "Red Dwarf", extra: formatMass(STAGES[15].mass), desc: "Hydrogen fusion ignites. You are a star! Your envelope becomes part of you. Unlock Stellar Wind. Each star form makes the mass softcap start ×100 later and boosts Stardust gain." },
     e16: { at: 16, reqText: "Yellow Dwarf", extra: "+ 20 Stardust", desc: "Stardust gain ×2." },
-    e17: { at: 17, reqText: "Blue Giant", extra: "+ 30,000 Stardust", desc: "Core temperature ×1.5." },
-    e18: { at: 18, reqText: "Supergiant", extra: "+ 10,000,000 Stardust", desc: "All fusion ×3. Your core can forge iron…" },
+    e17: { at: 17, reqText: "Blue Giant", extra: "+ 15,000 Stardust", desc: "Core temperature ×1.5." },
+    e18: { at: 18, reqText: "Supergiant", extra: "+ 100,000 Stardust", desc: "All fusion ×3. The biggest star you can become, for now." },
   },
 
   automation: {

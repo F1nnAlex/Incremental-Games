@@ -23,7 +23,7 @@ function collisionStart() {
 registerLayer({
   id: "collision",
   name: "Collision",
-  color: "#ff7a52",
+  color: "#ff5d73",
   currency: "shards",
   currencyName: "Shards",
   formatAmount: (x) => formatWhole(x) + (x.eq(1) ? " Shard" : " Shards"),
@@ -33,6 +33,18 @@ registerLayer({
   startData: () => ({
     shards: E(0),
   }),
+
+  resources: () => {
+    const passive = LAYERS.collision.prestige.passive();
+    return [
+      {
+        label: "Shards",
+        value: formatWhole(player.collision.shards),
+        sub: passive > 0 && tmp.collision.prestigeGain.gt(0) ? "+" + formatWhole(tmp.collision.prestigeGain.mul(passive)) + "/s" : "",
+      },
+      { label: "Collisions", value: formatWhole(collisions()), sub: "" },
+    ];
+  },
 
   layerHeader: () => [
     "You have ",
@@ -51,7 +63,7 @@ registerLayer({
       tmp.collision.canPrestige
         ? "Collide for +" + formatWhole(tmp.collision.prestigeGain) + " Shards"
         : "Collide",
-    resets: ["accretion", "evolution"],
+    resets: ["accretion", "evolution", "atmosphere"],
     keep: (layer) => {
       if (layer !== "accretion") return [];
       const keep = [];
@@ -59,7 +71,7 @@ registerLayer({
       if (hasMilestone("collision", "c12")) keep.push("buyables.gravity");
       return keep;
     },
-    passive: () => (hasUpgrade("collision", 6) ? 0.1 : hasMilestone("collision", "c10") ? 0.01 : 0),
+    passive: () => (hasUpgrade("collision", 6) ? 0.1 : 0),
     onReset: () => {
       const [stage, mass] = collisionStart();
       player.evolution.stage = E(stage);
@@ -73,8 +85,8 @@ registerLayer({
       icon: "✦",
       desc: "Shards boost mass gain.",
       cost: E(1),
-      effect: () => softcap(player.collision.shards.add(1).pow(0.4), 100, 0.3),
-      effectDisplay: (eff) => formatMult(eff) + (eff.gt(100) ? " (softcapped)" : ""),
+      effect: () => softcap(player.collision.shards.add(1).pow(0.4), shrapnelSoftcapStart(), 0.3),
+      effectDisplay: (eff) => formatMult(eff) + (eff.gt(shrapnelSoftcapStart()) ? " (softcapped)" : ""),
     },
     2: {
       title: "Kinetic Energy",
@@ -84,7 +96,14 @@ registerLayer({
       effect: () => E(collisions() + 1).sqrt(),
       effectDisplay: (eff) => formatMult(eff),
     },
-    3: { icon: "⟫", title: "Crater Memory", desc: "Evolve through several forms at once.", cost: E(10) },
+    3: {
+      icon: "✶",
+      title: "Fragmentation",
+      desc: "Bigger bodies shatter into more pieces. Shard gain ×(1 + log₁₀ of your mass in kg ÷ 20).",
+      cost: E(10),
+      effect: () => player.accretion.mass.max(1).log10().div(20).add(1),
+      effectDisplay: (eff) => formatMult(eff),
+    },
     4: { icon: "♨", title: "Molten Core", desc: "Cohesion multiplies by an extra +0.05 per level.", cost: E(100) },
     5: { icon: "≈", title: "Shockwave", desc: "Super Cohesion scaling is weaker (^2 → ^1.5).", cost: E(200) },
     6: { icon: "◌", title: "Debris Disk", desc: "Gain 10% of your Shard gain every second.", cost: E(1000) },
@@ -110,10 +129,10 @@ registerLayer({
       reqText: "6 collisions",
       desc: () => "Every collision makes you stronger: mass gain ×(collisions + 1)^0.25. Currently " + formatMult(collisionExperience()) + ".",
     },
-    c7: { req: () => collisions() >= 8, reqText: "8 collisions", desc: "Start every life as a Pebble." },
+    c7: { req: () => collisions() >= 8, reqText: "8 collisions", desc: "Start every life as a Pebble. Evolve through several forms at once." },
     c8: { req: () => collisions() >= 10, reqText: "10 collisions", desc: "Unlock Auto Gravity Well and Auto Upgrades. Accretion buildings no longer spend mass." },
     c9: { req: () => collisions() >= 12, reqText: "12 collisions", desc: "Unlock Auto Collide. It collides whenever that would at least double your Shards, but never once you are a Planet or bigger." },
-    c10: { req: () => collisions() >= 15, reqText: "15 collisions", desc: "Gain 1% of your Shard gain every second." },
+    c10: { req: () => collisions() >= 15, reqText: "15 collisions", desc: "Shrapnel's softcap starts at ×1,000 instead of ×100." },
     c11: { req: () => collisions() >= 20, reqText: "20 collisions", desc: "Start every life as a Boulder." },
     c12: { req: () => collisions() >= 25, reqText: "25 collisions", desc: "Keep Gravity Well levels when you collide." },
   },
@@ -138,6 +157,11 @@ registerLayer({
   },
 });
 
+/** Shrapnel is softcapped above this multiplier (15 collisions raises it). */
+function shrapnelSoftcapStart() {
+  return hasMilestone("collision", "c10") ? 1000 : 100;
+}
+
 /** Number of upgrades bought across every layer (for Chain Reaction). */
 function totalUpgradesOwned() {
   let n = 0;
@@ -148,8 +172,10 @@ function totalUpgradesOwned() {
 /** Everything that multiplies Shard gain. */
 function shardMult() {
   let m = E(1);
-  // Ice Giant: your atmosphere adds to the debris of every collision
-  if (hasMilestone("evolution", "e11")) m = m.mul(player.accretion.gas.add(1).log10().div(10).add(1).pow(2));
+  // Ice Giant: Shard gain ×3. Atmosphere Level 4: your gas adds to the debris of every collision
+  if (hasMilestone("evolution", "e11")) m = m.mul(3);
+  if (atmoLevel() >= 4) m = m.mul(player.atmosphere.gas.add(1).log10().div(2).add(1).pow(2));
+  if (hasUpgrade("collision", 3)) m = m.mul(upgradeEffect("collision", 3));
   return m.mul(fusionShardMult());
 }
 

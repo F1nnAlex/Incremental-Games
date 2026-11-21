@@ -4,6 +4,8 @@ Start as a 1 picogram speck of dust and evolve into planets, stars and galaxies.
 
 **To play:** double-click `index.html`. No install and no build step.
 
+**Plans:** see [ROADMAP.md](ROADMAP.md) for the upcoming updates (Star Map challenges, Supernova, Neutron Capture, Galaxy).
+
 ## Structure
 ```
 index.html          page shell + script tags (engine first, then content, then game.js)
@@ -17,11 +19,13 @@ js/core/            engine
   format.js save.js loop.js ui.js tabs.js hotkeys.js player.js
 js/content/         the game itself
   units.js          mass in kg, shown as pg → ng → … → t → M⊕ → M♃ → M☉
-  accretion.js      layer 1: Mass + Gas (from Planet), buildings, upgrades, the mass softcap
+  accretion.js      layer 1: core mass, buildings (Static Charge, Cohesion, Gravity Well), the mass softcap
+  atmosphere.js     from Planet: gas (in M⊕) and the 12-level Atmosphere ladder, 3 gas buildings,
+                    isolation mass (core stops at ~10 M⊕), merge into the star at Red Dwarf
   evolution.js      19 forms: Dust Speck → Planet → Gas Giant → Red Dwarf → Supergiant; Viewer sub-tab
   collision.js      layer 2: Collision → Shards, Shard upgrades, milestones
-  fusion.js         layer 3: core temperature, element chain H→He→C→O→Ne→Mg→Si→Fe, Shells,
-                    Stellar Wind → Stardust, Generations, discoveries, Periodic Table sub-tab
+  fusion.js         layer 3: core temperature, element chain H→He→C→O (+ Nitrogen via the CNO cycle), Shells,
+                    Stellar Wind → Stardust, Generations, compact Periodic Table sub-tab (heavier elements: later)
 js/game.js          startup
 ```
 
@@ -50,9 +54,12 @@ js/game.js          startup
 | Passive gain | `prestige.passive: () => 0.1` (10% of the reset gain per second) | Debris Disk |
 
 ## Balancing
-Pacing was tuned with a simulator that plays greedily: first Evolve ≈ 50 s, Pebble ≈ 8 min, first Collision ≈ 18 min, Protoplanet ≈ 1h40m, Planet ≈ 1h45m, Gas Giant ≈ 1h55m, Red Dwarf (first star + first Stellar Wind) ≈ 2h05m, Yellow Dwarf ≈ 2h40m, Blue Giant ≈ 3h10m, Supergiant ≈ 3h35m, Nickel (end of current content) ≈ 3h40m. Buildings stop spending their currency at 10 collisions (Accretion), 6 winds (Storm Bands) and 15 winds (Shells, Compression).
+Pacing was tuned with a simulator that plays greedily: first Evolve ≈ 50 s, Pebble ≈ 8 min, first Collision ≈ 18 min, Protoplanet ≈ 1h40m, Planet ≈ 1h45m, Red Dwarf (first star + first Stellar Wind) ≈ 2h, Yellow Dwarf (Carbon, Oxygen) ≈ 2h40m, Nitrogen ≈ 2h50m, Blue Giant ≈ 3h20m, Supergiant (end of current content) ≈ 4h25m. Buildings stop spending their currency at 10 collisions (Accretion), 6 winds (Storm Bands) and 15 winds (Shells, Compression).
 
-Star era rules that keep it stable: the mass softcap has a hard second stage (growth turns linear) and "softcap starts later" effects are the main way forward; core temperature only counts mass up to your next form; fusion's temperature bonus is capped at ×100; big star forms also need lifetime Stardust. The most sensitive numbers: Cohesion cost growth (3), Dense Core (×2.2), Super Cohesion start (54), Snowball softcap (^0.4), and anything that scales with the number of collisions (it compounds, because more collisions make the next one faster).
+Star era rules that keep it stable: the mass softcap has a hard second stage (growth turns linear) and "softcap starts later" effects are the main way forward; core temperature only counts mass up to your next form; fusion's temperature bonus is capped at ×100; big star forms also need lifetime Stardust. The most sensitive numbers: Cohesion cost growth (3), Dense Core (×2.2), Super Cohesion start (52.5), Snowball softcap (^0.4), and anything that scales with the number of collisions (it compounds, because more collisions make the next one faster).
+
+## Atmosphere (how real planets become giants)
+From Planet on, your core stops growing at ~10 M⊕ (isolation mass), so you grow by gathering gas, counted in Earth masses (0.01 → ~27,000 M⊕). Climb the Atmosphere ladder by reaching the next amount of gas (it is not spent); each of the 12 levels has a listed reward. Ice Giant needs Level 4, Gas Giant Level 7, plus total mass (core + gas). At Red Dwarf the gas merges into your star. Tuning knobs are in the `ATMO` object at the top of `atmosphere.js`.
 
 ## Resets (IMR style)
 - **Collision** resets Accretion and your form.
@@ -62,6 +69,8 @@ Star era rules that keep it stable: the mass softcap has a hard second stage (gr
 All upgrades live in the **Upgrades** tab: one column per layer with square tiles (`icon`), a hover panel with the details, **Buy all** and an **Auto: ON/OFF** toggle. Building auto-buyers are ON/OFF buttons inside each building's card (`automation.buyable`). Synergy upgrades: Debris Ring (free Cohesion levels from Static Charge), Chain Reaction (×1.1 per upgrade owned), Stellar Memory (×1.05 Stardust per milestone reached).
 
 ## Look
+A resource panel on the right (IMR style) lists every unlocked currency with its gain; a layer can customise its rows with `resources()`. Click a row to open its tab.
+
 IMR-style layout: tabs in a left sidebar, square panels. Layers can have sub-tabs (`subtabs: [{ id, name, build(panel) → update }]`); Evolution has Forms and a Viewer that shows your body growing and changing colour, your progress to the next form, and your path of forms. Colours are CSS variables at the top of `css/style.css`; each layer's colour is its `color` in the content file.
 
 ## Rules of thumb

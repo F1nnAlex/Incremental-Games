@@ -5,7 +5,7 @@ defineScaling("static", [{ name: "Super", start: 100, power: 2 }]);
 defineScaling("cohesion", [
   {
     name: "Super",
-    start: 54,
+    start: 52.5,
     power: () => (hasUpgrade("collision", 6) ? 1.5 : 2),
   },
 ]);
@@ -21,21 +21,41 @@ registerLayer({
 
   startData: () => ({
     mass: E(PG),
-    gas: E(0),
   }),
 
-  // Second line: your atmosphere and the softcap, when they apply
+  // Second line: the softcap, when it applies
   headerNote: () => {
-    const parts = [];
-    if (gasUnlocked()) {
-      const full = player.accretion.gas.gte(gasCap());
-      parts.push("Atmosphere: " + formatMass(player.accretion.gas) + " of gas" + (full ? " (full: your gravity holds at most 10× your mass)" : " (+" + formatMass(tmp.accretion.gasGain) + "/s)") + ".");
-    }
-    if (tmp.accretion.softcapped) parts.push("Mass gain is softcapped above " + formatMass(massSoftcapStart()) + "/s.");
-    return parts.join(" ");
+    if (atmosphereActive() && criticalCoreReached()) return "Your core has cleared its orbit (isolation mass, 10 M⊕): core growth is much slower. Grow bigger with gas in the Atmosphere tab.";
+    return tmp.accretion.softcapped ? "Mass gain is softcapped above " + formatMass(massSoftcapStart()) + "/s." : "";
   },
 
   headerText: () => "You are " + withArticle(stageName()),
+
+  // Evolve bar at the top of the tab (like IMR's rank buttons on its main tab)
+  buildExtra: (container) => {
+    const title = h("div", { class: "evo-bar-title" });
+    const fill = h("div", { class: "progress-fill" });
+    const label = h("div", { class: "evo-bar-label" });
+    const btn = h("button", { class: "evo-bar-btn", onclick: () => requestPrestige("evolution") });
+    const box = h("div", { class: "evo-bar" }, h("div", { class: "evo-bar-main" }, title, h("div", { class: "progress" }, fill), label), btn);
+    container.insertBefore(box, container.firstChild);
+    return { title, fill, label, btn };
+  },
+  updateExtra: (r) => {
+    const n = evo();
+    setText(r.title, "You are " + withArticle(stageName()));
+    const p = evolutionProgress();
+    const pct = (p * 100).toFixed(1) + "%";
+    if (r.fill.style.width !== pct) r.fill.style.width = pct;
+    setText(r.label, n >= MAX_STAGE ? "Fully evolved for now." : pct + " to " + STAGES[n + 1].name + " (" + stageRequirementText(n + 1) + ")");
+    const can = !!tmp.evolution.canPrestige;
+    setText(r.btn, n >= MAX_STAGE ? "Fully evolved" : can ? "Evolve!" : "Evolve");
+    setClass(r.btn, "can", can);
+  },
+
+  resources: () => [
+    { label: atmosphereActive() ? "Core mass" : "Mass", value: formatMass(player.accretion.mass), sub: "+" + formatMass(tmp.accretion.gain) + "/s" },
+  ],
 
   buyables: {
     static: {
@@ -78,28 +98,6 @@ registerLayer({
       scaling: "gravity",
       effect: (amount) => amount.mul(gravityPerLevel()).add(1),
       effectDisplay: (eff) => "^" + format(eff, 3),
-    },
-    envelope: {
-      title: "Gas Envelope",
-      desc: "Your gravity holds on to gas. Doubles gas capture per level.",
-      unlocked: () => gasUnlocked(),
-      noSpend: () => hasMilestone("collision", "c8"),
-      costStart: 1e24,
-      costGrowth: 8,
-      effect: (amount) => Decimal.pow(2, amount),
-      effectDisplay: (eff) => formatMult(eff) + " gas",
-    },
-    storms: {
-      title: "Storm Bands",
-      desc: "Swirling bands of wind pull in more gas. Gas gain ×1.5 per level.",
-      unlocked: () => gasUnlocked(),
-      currency: "gas",
-      costText: (x) => formatMass(x) + " of gas",
-      noSpend: () => hasMilestone("fusion", "w6"),
-      costStart: 1e22,
-      costGrowth: 4,
-      effect: (amount) => Decimal.pow(1.5, amount),
-      effectDisplay: (eff) => formatMult(eff) + " gas",
     },
   },
 
@@ -164,16 +162,6 @@ registerLayer({
       effect: () => E(evo() + 1),
       effectDisplay: (eff) => formatMult(eff),
     },
-    8: {
-      title: "Runaway Gas Accretion",
-      icon: "≋",
-      unlockText: "Become an Ice Giant.",
-      desc: "Once a core is big enough, gas floods in. Gas gain ×10.",
-      cost: E(1e25),
-      currency: "gas",
-      costText: (x) => formatMass(x) + " of gas",
-      unlocked: () => hasMilestone("evolution", "e11"),
-    },
     10: {
       title: "Debris Ring",
       icon: "◎",
@@ -183,16 +171,6 @@ registerLayer({
       unlockText: "Become a Protoplanet.",
       effect: () => player.accretion.buyables.static.div(50).floor(),
       effectDisplay: (eff) => "+" + formatWhole(eff) + " free Cohesion",
-    },
-    9: {
-      title: "Hydrogen Envelope",
-      icon: "H₂",
-      unlockText: "Become a Gas Giant.",
-      desc: "Gas presses down on your core. The mass gain softcap is weaker (^0.5 → ^0.55).",
-      cost: E(3e26),
-      currency: "gas",
-      costText: (x) => formatMass(x) + " of gas",
-      unlocked: () => hasMilestone("evolution", "e12"),
     },
   },
 
@@ -214,18 +192,6 @@ registerLayer({
       buyable: "gravity",
       unlocked: () => hasMilestone("collision", "c8"),
       run: autoBuyMax("accretion", "gravity"),
-    },
-    envelope: {
-      name: "Auto Gas Envelope",
-      buyable: "envelope",
-      unlocked: () => hasMilestone("fusion", "w6"),
-      run: autoBuyMax("accretion", "envelope"),
-    },
-    storms: {
-      name: "Auto Storm Bands",
-      buyable: "storms",
-      unlocked: () => hasMilestone("fusion", "w6"),
-      run: autoBuyMax("accretion", "storms"),
     },
     upgrades: {
       name: "Auto Upgrades",
@@ -262,22 +228,15 @@ registerLayer({
     // Second, much harder softcap: far above the first one, growth becomes almost linear
     gain = softcap(gain, scStart.mul(1000), 10, "log");
 
-    // Gas: a fraction of your mass gain is captured as an atmosphere (from Planet)
-    let gasGain = E(0);
-    if (gasUnlocked()) {
-      gasGain = gain.mul(0.01).mul(buyableEffect("accretion", "envelope")).mul(buyableEffect("accretion", "storms"));
-      if (hasMilestone("evolution", "e10")) gasGain = gasGain.mul(3);
-      if (hasUpgrade("accretion", 8)) gasGain = gasGain.mul(10);
-      gasGain = gasGain.mul(fusionGasMult());
-    }
-    return { gain, gasGain, softcapped };
+    // Atmosphere: a thick envelope helps the core, but past ~10 M⊕ the core has cleared its orbit
+    gain = gain.mul(atmosphereCoreMult()).mul(isolationMult());
+    return { gain, softcapped };
   },
 
   rate: () => tmp.accretion.gain,
 
   tick(dt) {
     player.accretion.mass = player.accretion.mass.add(tmp.accretion.gain.mul(dt));
-    if (gasUnlocked()) player.accretion.gas = player.accretion.gas.add(tmp.accretion.gasGain.mul(dt)).min(gasCap());
   },
 });
 
@@ -295,18 +254,9 @@ function gravityPerLevel() {
   return x;
 }
 
+/** Metallic Hydrogen (Atmosphere Level 9): the weight of your gas delays the mass softcap. */
 function gasSoftcapDelay() {
-  // Only as much gas as your own mass counts: your gravity can't hold on to more
-  return player.accretion.gas.min(player.accretion.mass).div(1e24).add(1).pow(0.2).max(10);
-}
-
-/** Your gravity can hold at most 10× your own mass in gas. */
-function gasCap() {
-  return player.accretion.mass.mul(10);
-}
-
-function gasUnlocked() {
-  return evo() >= PLANET_STAGE;
+  return player.atmosphere.gas.add(1).pow(0.25);
 }
 
 /** Mass gain above this (kg/s) is softcapped. */
@@ -315,13 +265,14 @@ function massSoftcapStart() {
   if (hasMilestone("evolution", "e14")) s = s.mul(5); // deuterium burning puffs you up
   // Stars: fusion energy drives strong winds that sweep in more matter (×100 per star form)
   if (evo() >= RED_DWARF_STAGE) s = s.mul(Decimal.pow(100, evo() - RED_DWARF_STAGE + 1));
-  // Gas Giant: the weight of your atmosphere compresses you, so you can keep growing
-  if (hasMilestone("evolution", "e12")) s = s.mul(gasSoftcapDelay());
+  // Gas Giant and Metallic Hydrogen: the weight of your envelope compresses you, so you can keep growing
+  if (hasMilestone("evolution", "e12")) s = s.mul(10);
+  if (atmosphereActive() && hasAtmoLevel(9)) s = s.mul(gasSoftcapDelay());
   return s.mul(fusionSoftcapDelay());
 }
 
 function massSoftcapPower() {
   let p = 0.5;
-  if (hasUpgrade("accretion", 9)) p += 0.05;
+  if (hasUpgrade("atmosphere", 3)) p += 0.05;
   return p + fusionSoftcapPowerBonus();
 }
