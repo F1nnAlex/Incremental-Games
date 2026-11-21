@@ -629,3 +629,113 @@ kbd {
   .pt-sym { font-size: 1.1rem; }
   .pt-amount { font-size: 0.55rem; }
 }
+
+/* ---------- Star Map ---------- */
+.sm-wrap {
+  --sm: #e879f9;
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+.sm-map {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 45% 30% at 30% 40%, #e879f914, transparent 70%),
+    radial-gradient(ellipse 40% 35% at 75% 60%, #4fc3f710, transparent 70%),
+    radial-gradient(1px 1px at 8% 30%, #ffffff60 50%, transparent 51%),
+    radial-gradient(1px 1px at 22% 85%, #ffffff40 50%, transparent 51%),
+    radial-gradient(1px 1px at 44% 48%, #ffffff50 50%, transparent 51%),
+    radial-gradient(1px 1px at 61% 88%, #ffffff35 50%, transparent 51%),
+    radial-gradient(1px 1px at 78% 16%, #ffffff55 50%, transparent 51%),
+    radial-gradient(1px 1px at 93% 44%, #ffffff40 50%, transparent 51%),
+    #060918;
+}
+.sm-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.sm-lines line { stroke: var(--border); stroke-width: 0.3; stroke-dasharray: 1 1; vector-effect: non-scaling-stroke; }
+.sm-lines line.open { stroke: #e879f970; stroke-dasharray: none; stroke-width: 1.5; }
+.sm-node {
+  position: absolute;
+  transform: translate(-50%, -14px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 3px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sm-node:hover, .sm-node.selected { border-color: #e879f960; background: #0f153099; }
+.sm-node:focus-visible { outline: 2px solid var(--sm); outline-offset: 2px; }
+.sm-dot {
+  width: 14px;
+  height: 14px;
+  margin-top: 7px;
+  transform: rotate(45deg);
+  background: var(--sm);
+  box-shadow: 0 0 12px #e879f9aa;
+}
+.sm-name { font-size: 0.8rem; font-weight: 600; }
+.sm-stars { font-size: 0.72rem; color: var(--sm); letter-spacing: 1px; }
+.sm-node.locked { color: var(--muted); }
+.sm-node.locked .sm-dot { background: var(--border-strong); box-shadow: none; }
+.sm-node.locked .sm-stars { color: var(--muted); letter-spacing: 0; }
+.sm-node.done .sm-dot { background: #ffd54f; box-shadow: 0 0 12px #ffd54faa; }
+.sm-node.done .sm-stars { color: #ffd54f; }
+.sm-node.here .sm-dot { animation: sm-pulse 1.6s ease-in-out infinite; }
+@keyframes sm-pulse { 50% { box-shadow: 0 0 2px #e879f9, 0 0 22px 6px #e879f9aa; } }
+@media (prefers-reduced-motion: reduce) { .sm-node.here .sm-dot { animation: none; outline: 2px solid #fff; } }
+
+.sm-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--sm);
+}
+.sm-detail-title { font-family: var(--font-ui); font-size: 1.15rem; font-weight: 600; color: var(--sm); }
+.sm-detail-status { color: var(--muted); font-size: 0.85rem; }
+.sm-detail-line { font-size: 0.9rem; }
+.sm-detail-reward { color: var(--good); }
+.sm-detail-extra { color: var(--warn); font-size: 0.85rem; }
+.sm-detail-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 6px; }
+.sm-travel, .sm-home {
+  padding: 8px 12px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  border: 1px solid var(--border-strong);
+  background: var(--panel-2);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+.sm-travel.can { border-color: var(--sm); background: #e879f922; color: var(--text); cursor: pointer; }
+.sm-travel.can:hover { background: #e879f940; }
+.sm-home { color: var(--text); cursor: pointer; }
+.sm-home:hover { border-color: var(--danger); }
+
+/* the rule banner shown on every layer page while you are in a region */
+.region-banner {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border: 1px solid #e879f960;
+  border-left: 4px solid #e879f9;
+  background: #e879f914;
+  font-size: 0.9rem;
+}
+.region-banner b { color: #e879f9; font-family: var(--font-ui); }
+.region-banner .sm-home { margin-left: 8px; padding: 2px 8px; font-size: 0.8rem; }
+
+@media (max-width: 720px) {
+  .sm-wrap { grid-template-columns: minmax(0, 1fr); }
+  .sm-map { aspect-ratio: 4 / 5; }
+  .sm-name { font-size: 0.68rem; white-space: normal; max-width: 80px; text-align: center; line-height: 1.1; }
+}

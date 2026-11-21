@@ -13,7 +13,7 @@ function collisions() {
 
 /** Where a new life starts, depending on milestones: [stage, mass in kg]. */
 function collisionStart() {
-  if (hasMilestone("fusion", "w11")) return [PLANET_STAGE, STAGES[PLANET_STAGE].mass]; // Planet
+  if (hasMilestone("fusion", "w11") && !currentRegion()) return [PLANET_STAGE, STAGES[PLANET_STAGE].mass]; // Planet (not in a Star Map region)
   if (hasMilestone("collision", "c11")) return [5, STAGES[5].mass]; // Boulder
   if (hasMilestone("collision", "c7")) return [3, STAGES[3].mass]; // Pebble
   if (hasMilestone("collision", "c5")) return [2, STAGES[2].mass]; // Sand Grain
@@ -176,6 +176,9 @@ function shardMult() {
   if (hasMilestone("evolution", "e11")) m = m.mul(3);
   if (atmoLevel() >= 4) m = m.mul(player.atmosphere.gas.add(1).log10().div(2).add(1).pow(2));
   if (hasUpgrade("collision", 3)) m = m.mul(upgradeEffect("collision", 3));
+  // Star Map: Hypervelocity Stream (rule: no Shards; reward: more Shards)
+  if (ruleActive("stream")) return E(0);
+  m = m.mul(E(completions("stream") + 1).pow(1.5));
   return m.mul(fusionShardMult());
 }
 

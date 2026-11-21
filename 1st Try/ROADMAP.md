@@ -13,13 +13,13 @@ The base game runs about **4h25** to Supergiant:
 | Fusion and Stellar Winds | ~2h20 |
 
 ## Roadmap (each era longer than the last)
-| Update | Era | What's new | Target length |
-|---|---|---|---|
-| 1 (done) | Dust → Star | Accretion, Collision, Atmosphere, Fusion | ~4.5 h |
-| **2 (next)** | Star era, deeper | **Star Map**: challenges as birthplaces; new Fusion upgrades unlocked by completions; Supergiant gated behind the Star Map | +2.5–3 h → ~7 h |
-| 3 | Death of a star | **Supernova** (layer 4): core collapse resets Fusion. Currency **Neutronium**. Supergiant burning stages (Ne → Mg → Si → Fe) refill the Periodic Table. Each Supernova, choose a **remnant**: Neutron Star (pulsar spin, steady bonuses) or Black Hole (accretion disk, huge but risky multipliers) | +6–8 h |
-| 4 | Heavy elements | **Neutron Capture**: neutron-star mergers and r-process "drops" of rare heavy elements (Sr, Ag, Au, Pt, U), collected with rarity tiers into periods 4–7 of the Periodic Table | +8–10 h |
-| 5 | Galaxy | **Galaxy** (layer 5): you become a star cluster, then a galaxy. Manage star populations, dark matter halo, spiral arms | +15 h+ |
+| Update       | Era              | What's new                                                                                                                                                                                                                                                                                          | Target length   |
+| ------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 1 (done)     | Dust → Star      | Accretion, Collision, Atmosphere, Fusion                                                                                                                                                                                                                                                            | ~4.5 h          |
+| 2 (done)     | Star era, deeper | **Star Map**: challenges as birthplaces; new Fusion upgrades unlocked by completions; Supergiant gated behind the Star Map; Enriched Winds (gas +20% per wind, up to ×2) | built: +1.5 h → ~6 h |
+| **3 (next)** | Death of a star  | **Supernova** (layer 4): core collapse resets Fusion. Currency **Neutronium**. Supergiant burning stages (Ne → Mg → Si → Fe) refill the Periodic Table. Each Supernova, choose a **remnant**: Neutron Star (pulsar spin, steady bonuses) or Black Hole (accretion disk, huge but risky multipliers) | +6–8 h          |
+| 4            | Heavy elements   | **Neutron Capture**: neutron-star mergers and r-process "drops" of rare heavy elements (Sr, Ag, Au, Pt, U), collected with rarity tiers into periods 4–7 of the Periodic Table                                                                                                                      | +8–10 h         |
+| 5            | Galaxy           | **Galaxy** (layer 5): you become a star cluster, then a galaxy. Manage star populations, dark matter halo, spiral arms                                                                                                                                                                              | +15 h+          |
 
 **Pacing rule for every update:**
 - Each stage takes about 1.3–1.5× as long as the stage before it.
@@ -28,7 +28,8 @@ The base game runs about **4h25** to Supergiant:
 
 ---
 
-## Update 2 in detail: the Star Map (challenges)
+## Update 2 in detail: the Star Map (challenges), built
+> The tables below are **as built** after balancing. The first draft had tier goals starting at Protoplanet and a "lose 2% of your mass every second" rule. The simulator showed those tiers were either instant or impossible walls, so they changed.
 **Idea:** challenges are *places in the galaxy where your next generation is born*. Each region is a hostile environment with one harsh rule. Enter a region to start a new generation there and reach the region's goal to earn a **completion**. Each region has 5 completions with harder goals, and its reward grows with every completion. This is like IMR's repeatable challenges, but as a map.
 
 ### Unlock and flow
@@ -39,24 +40,33 @@ The base game runs about **4h25** to Supergiant:
 - **Map UI:** a starfield panel with region nodes connected by lines. Each node shows ★★☆☆☆. Clicking a node shows its rule, the next goal, the current reward and the next reward. Locked regions show the total completions needed to unlock them.
 
 ### Regions
-| # | Region | Rule (harsh) | Goals (tiers 1→5) | Reward per completion c (max 5) | Unlocks at |
-|---|---|---|---|---|---|
-| 1 | **Dusty Nebula** | thick dust: mass gain ^0.85 | Protoplanet → Planet → Gas Giant → Red Dwarf → Yellow Dwarf | Cohesion +0.03×c per level | start |
-| 2 | **Hypervelocity Stream** | you fly too fast: no Shards from collisions | Planet → Ice Giant → Gas Giant → Brown Dwarf → Red Dwarf | Shard gain ×(c+1)^1.5 | start |
-| 3 | **Starless Void** | far from any nebula: gas gain ÷100 | Ice Giant → Gas Giant → Super-Jupiter → Brown Dwarf → Red Dwarf | Gas gain ×(c+1)², Atmosphere costs ÷(c+1) | 3 completions |
-| 4 | **Cold Molecular Cloud** | core temperature ÷4 | fuse 1e26 → 1e28 → 1e30 kg of Helium, then 1e24 → 1e27 kg of Carbon | Core temperature ×(1 + 0.1c), Compression ×+0.01c per level | 6 completions |
-| 5 | **Black Hole Outskirts** | tidal stripping: your core loses 2% of its mass every second | Gas Giant → Brown Dwarf → Red Dwarf → Yellow Dwarf → Blue Giant | Mass softcap starts ×10^c later | 10 completions |
-| 6 | **Supernova Remnant** | rules 1, 2, 4 and 5 at once | Planet → Gas Giant → Red Dwarf → Yellow Dwarf → Blue Giant | Stardust gain ×(c+1)² | 15 completions |
+Each region has one **signature rule**. On top of that, every tier takes you **deeper in**: the mass gain softcap starts 10^(tier−1)× sooner, so tier 1 is unchanged and tier 5 is 10,000× sooner. Inside a region you are born far from home, so there is no Planet start and no elements are kept.
 
-The total is 30 completions.
+| # | Region | Signature rule | Goals (tiers 1→5) | Reward per completion c (max 5) | Unlocks at |
+|---|---|---|---|---|---|
+| 1 | **Dusty Nebula** | mass gain ^0.85 | Gas Giant → Brown Dwarf → Red Dwarf → Yellow Dwarf → Blue Giant | Cohesion +0.03×c per level | start |
+| 2 | **Hypervelocity Stream** | start with 0 collisions, can't collide, no Shards, Cohesion −0.3 per level | Ice Giant → Super-Jupiter → Red Dwarf → Yellow Dwarf → Blue Giant | Shard gain ×(c+1)^1.5 | start |
+| 3 | **Starless Void** | gas gain ÷10, 1.7× harsher per tier | Ice Giant → Gas Giant → Super-Jupiter → Brown Dwarf → Red Dwarf | Gas gain ×(c+1)², Atmosphere buildings (c+1)× cheaper | 3 completions |
+| 4 | **Cold Molecular Cloud** | Compression and Shells don't work, core temperature ÷4 | fuse 1e29 kg He → 1e27 kg C → 1e29 kg C → 1e28 kg O → 1e30 kg O | Core temperature ×(1 + 0.1c), Compression +0.01c per level | 6 completions |
+| 5 | **Black Hole Outskirts** | tidal forces: the mass gain softcap starts 1,000× sooner | Gas Giant → Brown Dwarf → Red Dwarf → Yellow Dwarf → Blue Giant | Mass softcap starts ×10^c later | 10 completions |
+| 6 | **Supernova Remnant** | the Dusty, Cold and Black Hole rules at once | Gas Giant → Red Dwarf → Yellow Dwarf → Blue Giant → Supergiant | Stardust gain ×(c+1) | 15 completions |
+
+The total is 30 completions. All the numbers are knobs in `STARMAP` at the top of `js/content/starmap.js`.
 
 ### Rewards that tie it together
 - **Fusion upgrades 10–12 unlock at 5 / 12 / 20 total completions.** They appear in the Upgrades tab as "?" tiles with that unlock text:
-  - **Stellar Cartography:** Stardust ×(total completions + 1).
-  - **Population II Stars:** Stellar Wind keeps 25% of your elements.
-  - **Protostellar Jets:** Auto Stellar Wind can also auto-complete regions.
+  - **Stellar Cartography:** Stardust ×(1 + total completions ÷ 10).
+  - **Population II Stars:** Stellar Wind keeps 25% of your elements (not in a region).
+  - **Protostellar Jets:** Auto Stellar Wind travels to the region with the fewest completions. Auto Stellar Wind never blows while you are in a region.
 - **Supergiant** now also needs **10 Star Map completions**, which makes the Star Map the main content of this era.
 - **New end goal:** 30/30 completions, with a teaser for the Supernova in Update 3.
+
+### New elements in the Periodic Table
+- **Lithium, Beryllium and Boron (cosmic rays).** Supernova remnants are full of cosmic rays, which split carbon and oxygen into these light elements. You get them at Supernova Remnant tiers 1, 3 and 5:
+  - **Li:** Shard gain ×3.
+  - **Be:** Gravity Well +0.002 per level.
+  - **B:** gas gain ×2.
+- **Neon: the reward for 30/30 completions.** Your core starts carbon burning, and Neon fuses from Oxygen at 600 MK. It gets its own Neon Shell and gives Stardust ×(1 + log₁₀ Ne ÷ 10). It's the first element past Oxygen and a teaser for the Supernova.
 
 ### Implementation notes
 - **New layer `starmap`** in `js/content/starmap.js`. It's a non-reset layer like Evolution.

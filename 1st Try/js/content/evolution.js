@@ -25,7 +25,7 @@ const STAGES = [
   { name: "Red Dwarf", mass: 1.6e29, size: 44, color: "#ff5a36", star: true, fact: "The smallest true star. Hydrogen fusion lights you up." }, // 0.08 M☉
   { name: "Yellow Dwarf", mass: 1.989e30, stardust: 20, size: 46, color: "#ffd75e", star: true, fact: "As massive as the Sun." }, // 1 M☉
   { name: "Blue Giant", mass: 2e31, stardust: 1.5e4, size: 48, color: "#9ec9ff", star: true, fact: "Ten Suns of mass, burning hot and blue." },
-  { name: "Supergiant", mass: 5e31, stardust: 1e5, size: 50, color: "#ff8a4a", star: true, fact: "One of the biggest stars in the galaxy." },
+  { name: "Supergiant", mass: 5e31, stardust: 1e5, starmap: 10, size: 50, color: "#ff8a4a", star: true, fact: "One of the biggest stars in the galaxy." },
 ];
 const MAX_STAGE = STAGES.length - 1;
 const PLANET_STAGE = 9;
@@ -47,6 +47,7 @@ function stageReady(n) {
   if (totalMass().lt(stageMassNeeded(n))) return false;
   if (s.atmo && atmoLevel() < s.atmo) return false;
   if (s.stardust && totalStardust().lt(s.stardust)) return false;
+  if (s.starmap && totalCompletions() < s.starmap) return false;
   return true;
 }
 
@@ -73,6 +74,7 @@ function stageRequirementText(n) {
   let text = formatMass(stageMassNeeded(n)) + (n > PLANET_STAGE ? " total" : " of mass");
   if (s.atmo) text += " and Atmosphere Level " + s.atmo;
   if (s.stardust) text += " and " + formatWhole(s.stardust) + " total Stardust";
+  if (s.starmap) text += " and " + s.starmap + " Star Map completions";
   return text;
 }
 
@@ -90,6 +92,7 @@ function evolutionProgress() {
   let p = logProgress(totalMass(), STAGES[n].mass, stageMassNeeded(n + 1));
   if (next.atmo) p = Math.min(p, atmoLevel() / next.atmo);
   if (next.stardust) p = Math.min(p, logProgress(totalStardust().mul(PG), (STAGES[n].stardust || 1) * PG, next.stardust * PG));
+  if (next.starmap) p = Math.min(p, totalCompletions() / next.starmap);
   return p;
 }
 
@@ -218,7 +221,7 @@ registerLayer({
     e15: { at: 15, reqText: "Red Dwarf", extra: formatMass(STAGES[15].mass), desc: "Hydrogen fusion ignites. You are a star! Your envelope becomes part of you. Unlock Stellar Wind. Each star form makes the mass softcap start ×100 later and boosts Stardust gain." },
     e16: { at: 16, reqText: "Yellow Dwarf", extra: "+ 20 Stardust", desc: "Stardust gain ×2." },
     e17: { at: 17, reqText: "Blue Giant", extra: "+ 15,000 Stardust", desc: "Core temperature ×1.5." },
-    e18: { at: 18, reqText: "Supergiant", extra: "+ 100,000 Stardust", desc: "All fusion ×3. The biggest star you can become, for now." },
+    e18: { at: 18, reqText: "Supergiant", extra: "+ 100,000 Stardust + 10 Star Map completions", desc: "All fusion ×3. The biggest star you can become, for now." },
   },
 
   automation: {

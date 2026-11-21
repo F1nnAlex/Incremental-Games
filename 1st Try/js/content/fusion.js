@@ -1,7 +1,8 @@
 // Layer 3: Fusion. From Brown Dwarf on, your core has a temperature. When it is hot enough,
 // lighter elements fuse into heavier ones, each at its real ignition temperature:
-//   H → He (10 MK) → C (100 MK) → O (200 MK)
-// Nitrogen is *discovered* through the CNO cycle. Heavier elements arrive in later updates.
+//   H → He (10 MK) → C (100 MK) → O (200 MK) → Ne (600 MK, after every Star Map region is done)
+// Nitrogen is *discovered* through the CNO cycle; Li, Be and B come from cosmic rays in the
+// Supernova Remnant region. Heavier elements arrive in later updates.
 //
 // Reset: Stellar Wind. Your star blows its gas back into space and a new generation is born from
 // the enriched remains. You keep Stardust (and Shells, upgrades, discoveries).
@@ -13,16 +14,19 @@ const CHAIN = [
   { sym: "He", from: "H", ignite: 1e7, base: 1e-4 },
   { sym: "C", from: "He", ignite: 1e8, base: 1e-6 },
   { sym: "O", from: "C", ignite: 2e8, base: 1e-6 },
+  // Carbon burning: only once every Star Map region is completed
+  { sym: "Ne", from: "O", ignite: 6e8, base: 1e-6, needs: () => totalCompletions() >= MAX_COMPLETIONS },
 ];
 const CHAIN_BY_SYM = Object.fromEntries(CHAIN.map((c) => [c.sym, c]));
 
 // [first cost, cost growth] in Stardust. Each level doubles that element's fusion.
-const SHELL_COSTS = { He: [1, 5], C: [5, 6], O: [20, 8] };
+const SHELL_COSTS = { He: [1, 5], C: [5, 6], O: [20, 8], Ne: [1e6, 10] };
 
 // Balance knobs for the element effects
 const ELEM = {
   oxygenStardust: 5, // Stardust gain ×(1 + log₁₀ O / this)
   nitrogenAt: 1e28, // kg of Oxygen needed to discover Nitrogen (the CNO cycle)
+  windGas: 0.2, windGasCap: 2, // Enriched Winds milestone: gas gain ×(1 + windGas × Stellar Winds), at most ×windGasCap
 };
 
 /** log10(amount + 1) of an element. */
@@ -55,23 +59,32 @@ function coreTemp() {
   // Mass only counts up to your next form's requirement, so every star form unlocks its own burning phase.
   const cap = STAGES[Math.min(evo() + 1, MAX_STAGE)].mass;
   let t = E(1e7).mul(player.accretion.mass.min(cap).div(1.6e29).pow(0.8));
-  t = t.mul(buyableEffect("fusion", "compression"));
+  if (!(typeof ruleActive === "function" && ruleActive("cold"))) t = t.mul(buyableEffect("fusion", "compression")); // Cold Molecular Cloud: no Compression
   if (hasMilestone("evolution", "e17")) t = t.mul(1.5);
+  // Star Map, Cold Molecular Cloud: rule ÷4, reward ×(1 + 0.1c)
+  t = t.mul(1 + STARMAP.coldTemp * completions("cold"));
+  if (ruleActive("cold")) t = t.div(ruleColdDiv());
   return t;
 }
 
 /** Fusion rate of a chain element, as a fraction of its source element per second. */
 function fusionRate(sym) {
   const c = CHAIN_BY_SYM[sym];
+  if (c.needs && !c.needs()) return E(0);
   const t = tmp.fusion && tmp.fusion.temp ? tmp.fusion.temp : coreTemp();
   if (t.lt(c.ignite)) return E(0);
   // Fusion is very sensitive to temperature: hotter cores burn much faster (up to ×100)
   let r = E(c.base).mul(t.div(c.ignite).pow(2).min(100));
-  r = r.mul(buyableEffect("fusion", "shell" + sym));
+  if (!(typeof ruleActive === "function" && ruleActive("cold"))) r = r.mul(buyableEffect("fusion", "shell" + sym)); // Cold Molecular Cloud: no Shells
   r = r.mul(allFusionMult());
   if (sym === "He" && isDiscovered("N")) r = r.mul(10);
   if (sym === "C" && hasUpgrade("fusion", 4)) r = r.mul(elemLog("He").add(1));
   return r;
+}
+
+/** Compression: core temperature ×this per level (Neutrino Cooling and the Cold Molecular Cloud raise it). */
+function compressionBase() {
+  return (hasUpgrade("fusion", 6) ? 1.15 : 1.1) + STARMAP.coldCompression * completions("cold");
 }
 
 function allFusionMult() {
@@ -92,6 +105,7 @@ function totalStardust() {
 
 /** Collisions you start each generation with (their milestones come with them). */
 function startingCollisions() {
+  if (typeof ruleActive === "function" && ruleActive("stream")) return 0; // Hypervelocity Stream
   if (hasMilestone("fusion", "w3")) return 12;
   if (hasMilestone("fusion", "w1")) return 5;
   return 0;
@@ -117,15 +131,23 @@ function fusionMassMult() {
 }
 
 /** Oxygen and Deep Convection boost gas gain. */
+/** Enriched Winds milestone: every Stellar Wind enriches the gas your next generation is born in. */
+function windGasMult() {
+  return hasMilestone("fusion", "wg") ? E(Math.min(ELEM.windGasCap, 1 + ELEM.windGas * generations())) : E(1);
+}
+
 function fusionEnvelopeMult() {
   let m = elemLog("O").div(10).add(1);
   if (hasUpgrade("fusion", 3)) m = m.mul(2);
+  m = m.mul(windGasMult());
+  if (isDiscovered("B")) m = m.mul(2);
   return m;
 }
 
 function fusionShardMult() {
   let m = elemLog("C").add(1);
   if (hasUpgrade("fusion", 2)) m = m.mul(totalStardust().add(1).sqrt());
+  if (isDiscovered("Li")) m = m.mul(3);
   return m;
 }
 
@@ -140,7 +162,16 @@ function fusionSoftcapPowerBonus() {
 }
 
 function fusionGravityBonus() {
-  return 0;
+  return isDiscovered("Be") ? 0.002 : 0;
+}
+
+/** Stellar Cartography: Stardust ×(1 + Star Map completions / 10). */
+function cartographyMult() {
+  return E(1 + totalCompletions() / STARMAP.cartographyDiv);
+}
+
+function neonStardustMult() {
+  return elemLog("Ne").div(10).add(1);
 }
 
 function oxygenStardustMult() {
@@ -151,7 +182,9 @@ function stardustMult() {
   // Bigger stars blow stronger winds: Red Dwarf ×2, Yellow Dwarf ×3, Blue Giant ×4, Supergiant ×5
   let m = E(Math.max(1, evo() - 13));
   if (hasMilestone("evolution", "e16")) m = m.mul(2);
-  m = m.mul(oxygenStardustMult());
+  m = m.mul(oxygenStardustMult()).mul(neonStardustMult());
+  m = m.mul(E(completions("remnant") + 1).pow(STARMAP.remnantPow));
+  if (hasUpgrade("fusion", 10)) m = m.mul(cartographyMult());
   if (hasMilestone("fusion", "w12")) m = m.mul(Decimal.pow(1.1, player.fusion.discovered.length));
   if (hasUpgrade("fusion", 9)) m = m.mul(Decimal.pow(1.05, totalMilestonesReached()));
   return m;
@@ -179,6 +212,30 @@ const ELEMENT_INFO = {
     check: () => amountOf("O").gte(ELEM.nitrogenAt),
     effect: () => "Helium fusion ×10.",
   },
+  // Cosmic rays in the Supernova Remnant split carbon and oxygen into these light elements
+  Li: {
+    kind: "discovery",
+    about: "Shard gain ×3.",
+    need: () => "Cosmic rays make it: complete the Supernova Remnant on the Star Map once (" + completions("remnant") + "/1).",
+    effect: () => "Shard gain ×3.",
+  },
+  Be: {
+    kind: "discovery",
+    about: "Gravity Well +0.002 per level.",
+    need: () => "Cosmic rays make it: complete the Supernova Remnant 3 times (" + completions("remnant") + "/3).",
+    effect: () => "Gravity Well +0.002 per level.",
+  },
+  B: {
+    kind: "discovery",
+    about: "Gas gain ×2.",
+    need: () => "Cosmic rays make it: complete the Supernova Remnant 5 times (" + completions("remnant") + "/5).",
+    effect: () => "Gas gain ×2.",
+  },
+  Ne: {
+    kind: "fusion",
+    about: "Boosts Stardust gain.",
+    effect: () => "Stardust gain " + formatMult(neonStardustMult()) + ".",
+  },
 };
 for (const [sym, , name] of TABLE) if (ELEMENT_INFO[sym]) ELEMENT_INFO[sym].name = name;
 const OBTAINABLE = Object.keys(ELEMENT_INFO);
@@ -192,6 +249,7 @@ function elementStatus(sym) {
   }
   const c = CHAIN_BY_SYM[sym];
   const t = tmp.fusion.temp;
+  if (c.needs && !c.needs()) return { state: "todo", text: "Complete every Star Map region (" + totalCompletions() + "/" + MAX_COMPLETIONS + "). Then your core starts carbon burning and fuses Oxygen into Neon at " + formatTemp(c.ignite) + "." };
   const fusing = fusionRate(sym).gt(0);
   if (fusing) return { state: "fusing", text: "Fusing from " + ELEMENT_INFO[c.from].name + "." };
   if (isDiscovered(sym)) return { state: "found", text: "Needs a " + formatTemp(c.ignite) + " core to keep fusing (yours: " + formatTemp(t) + ")." };
@@ -268,11 +326,12 @@ registerLayer({
     onReset: (gain) => {
       player.fusion.totalStardust = player.fusion.totalStardust.add(gain);
       // Elements fly away with the wind (12 winds: keep 10%)
-      const keep = hasMilestone("fusion", "w9") ? 0.1 : 0;
+      // (born in a Star Map region, far from home, you keep none)
+      const keep = currentRegion() ? 0 : hasUpgrade("fusion", 11) ? 0.25 : hasMilestone("fusion", "w9") ? 0.1 : 0;
       for (const c of CHAIN) player.fusion.elements[c.sym] = player.fusion.elements[c.sym].mul(keep);
       // Your collision count is reset too; milestones give some collisions back for free
       player.collision.resets = startingCollisions();
-      const [stage, mass] = hasMilestone("fusion", "w7") ? [PLANET_STAGE, STAGES[PLANET_STAGE].mass] : collisionStart();
+      const [stage, mass] = hasMilestone("fusion", "w7") && !currentRegion() ? [PLANET_STAGE, STAGES[PLANET_STAGE].mass] : collisionStart();
       player.evolution.stage = E(stage);
       player.accretion.mass = E(mass);
     },
@@ -281,11 +340,11 @@ registerLayer({
   buyables: {
     compression: {
       title: "Compression",
-      desc: () => "Squeeze your core. Core temperature ×" + (hasUpgrade("fusion", 6) ? "1.15" : "1.1") + " per level.",
+      desc: () => "Squeeze your core. Core temperature ×" + format(compressionBase(), 2) + " per level.",
       noSpend: () => hasMilestone("fusion", "w10"),
       costStart: 2,
       costGrowth: 4,
-      effect: (amount) => Decimal.pow(hasUpgrade("fusion", 6) ? 1.15 : 1.1, amount),
+      effect: (amount) => Decimal.pow(compressionBase(), amount),
       effectDisplay: (eff) => formatMult(eff),
     },
     ...shellBuyables,
@@ -343,18 +402,46 @@ registerLayer({
       effect: () => Decimal.pow(1.05, totalMilestonesReached()),
       effectDisplay: (eff) => formatMult(eff),
     },
+    // Star Map upgrades: unlocked by total completions
+    10: {
+      title: "Stellar Cartography",
+      icon: "✶",
+      desc: "Every region you have mapped helps. Stardust gain ×(1 + Star Map completions / 10).",
+      cost: E(2e5),
+      unlocked: () => totalCompletions() >= 5,
+      unlockText: () => "Reach 5 Star Map completions to unlock (" + totalCompletions() + "/5).",
+      effect: () => cartographyMult(),
+      effectDisplay: (eff) => formatMult(eff),
+    },
+    11: {
+      title: "Population II Stars",
+      icon: "Ⅱ",
+      desc: "Each generation is born richer in metals. Stellar Wind keeps 25% of your elements.",
+      cost: E(2e6),
+      unlocked: () => totalCompletions() >= 12,
+      unlockText: () => "Reach 12 Star Map completions to unlock (" + totalCompletions() + "/12).",
+    },
+    12: {
+      title: "Protostellar Jets",
+      icon: "⇶",
+      desc: "Jets carry your next generation far away. Auto Stellar Wind travels to the Star Map region with the fewest completions.",
+      cost: E(2e7),
+      unlocked: () => totalCompletions() >= 20,
+      unlockText: () => "Reach 20 Star Map completions to unlock (" + totalCompletions() + "/20).",
+    },
   },
 
   milestoneTitle: "Stellar Wind milestones",
   milestones: {
     w1: { req: () => generations() >= 1, reqText: "1 Stellar Wind", desc: "Start every generation with 5 collisions (and their milestones)." },
     w2: { req: () => generations() >= 2, reqText: "2 Stellar Winds", desc: "Keep Accretion upgrades on Stellar Wind." },
+    wg: { req: () => generations() >= 2, reqText: "2 Stellar Winds", desc: () => "Enriched Winds: each Stellar Wind leaves richer gas behind. Gas gain +" + format(ELEM.windGas * 100, 0) + "% per Stellar Wind, up to " + formatMult(ELEM.windGasCap, 0) + ". Currently " + formatMult(windGasMult()) + "." },
     w3: { req: () => generations() >= 3, reqText: "3 Stellar Winds", desc: "Start every generation with 12 collisions." },
     w4: { req: () => generations() >= 4, reqText: "4 Stellar Winds", desc: "Keep Shard upgrades on Stellar Wind. Unlock Auto Shard Upgrades." },
     w5: { req: () => generations() >= 5, reqText: "5 Stellar Winds", desc: "Auto Evolve works past Planet." },
     w6: { req: () => generations() >= 6, reqText: "6 Stellar Winds", desc: "Unlock Auto Climb and auto-buyers for every Atmosphere building. They no longer spend gas." },
     w7: { req: () => generations() >= 8, reqText: "8 Stellar Winds", desc: "Start every generation as a Planet." },
-    w8: { req: () => generations() >= 10, reqText: "10 Stellar Winds", desc: "Unlock Auto Compression, Auto Shells and Auto Fusion Upgrades." },
+    w8: { req: () => generations() >= 10, reqText: "10 Stellar Winds", desc: "Unlock Auto Compression, Auto Shells and Auto Atmosphere Upgrades." },
     w9: { req: () => generations() >= 12, reqText: "12 Stellar Winds", desc: "Keep 10% of your elements on Stellar Wind." },
     w10: { req: () => generations() >= 15, reqText: "15 Stellar Winds", desc: "Unlock Auto Stellar Wind. Pick the star form it waits for; it blows once that gives at least 10% of your total Stardust. Shells and Compression no longer spend Stardust." },
     w11: { req: () => generations() >= 20, reqText: "20 Stellar Winds", desc: "Collisions also restart you as a Planet." },
@@ -362,12 +449,6 @@ registerLayer({
   },
 
   automation: {
-    upgrades: {
-      name: "Auto Fusion Upgrades",
-      upgrades: true,
-      unlocked: () => hasMilestone("fusion", "w8"),
-      run: autoBuyUpgrades("fusion"),
-    },
     compression: {
       name: "Auto Compression",
       buyable: "compression",
@@ -386,8 +467,13 @@ registerLayer({
       unlocked: () => hasMilestone("fusion", "w10"),
       run: () => {
         updateTemp();
+        if (currentRegion()) return; // never blow away a Star Map run
         if (evo() < player.fusion.windTarget) return;
-        if (tmp.fusion.canPrestige && tmp.fusion.prestigeGain.gte(totalStardust().mul(0.1).max(1))) doPrestige("fusion");
+        if (!tmp.fusion.canPrestige || tmp.fusion.prestigeGain.lt(totalStardust().mul(0.1).max(1))) return;
+        // Protostellar Jets: travel to the next region instead of staying home
+        const next = hasUpgrade("fusion", 12) && starmapUnlocked() ? nextAutoRegion() : "";
+        if (next) travel(next);
+        else doPrestige("fusion");
       },
     },
   },
@@ -486,7 +572,7 @@ function buildPeriodicTable(panel) {
 
     // Show found elements plus the next one you can work towards (in chain order)
     let shownTodo = false;
-    for (const sym of ["H", "He", "C", "O", "N"]) {
+    for (const sym of ["H", "He", "C", "O", "N", "Li", "Be", "B", "Ne"]) {
       const r = rows[sym];
       const s = elementStatus(sym);
       const visible = s.state !== "todo" || !shownTodo;

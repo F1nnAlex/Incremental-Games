@@ -220,6 +220,8 @@ registerLayer({
     // Gravity Well raises gain (measured in pg/s, so it always helps) to a power
     const exp = buyableEffect("accretion", "gravity");
     if (exp.gt(1) && gain.gt(PG)) gain = gain.div(PG).pow(exp).mul(PG);
+    // Star Map, Dusty Nebula: thick dust smothers you (in pg/s, before the softcaps)
+    if (ruleActive("dust") && gain.gt(PG)) gain = gain.div(PG).pow(ruleDustPower()).mul(PG);
 
     // Mass softcap: at planetary sizes growth slows down (Gas Giant, Helium and upgrades delay it)
     const scStart = massSoftcapStart();
@@ -230,6 +232,7 @@ registerLayer({
 
     // Atmosphere: a thick envelope helps the core, but past ~10 M⊕ the core has cleared its orbit
     gain = gain.mul(atmosphereCoreMult()).mul(isolationMult());
+
     return { gain, softcapped };
   },
 
@@ -243,6 +246,9 @@ registerLayer({
 function cohesionBase() {
   let base = hasUpgrade("accretion", 5) ? 2.2 : 2;
   if (hasUpgrade("collision", 4)) base += 0.05;
+  base += STARMAP.dustyCohesion * completions("dusty");
+  // Star Map, Hypervelocity Stream: debris slides off you
+  if (ruleActive("stream")) base -= RULES.stream.cohesion(ruleTier());
   return base;
 }
 
@@ -268,6 +274,10 @@ function massSoftcapStart() {
   // Gas Giant and Metallic Hydrogen: the weight of your envelope compresses you, so you can keep growing
   if (hasMilestone("evolution", "e12")) s = s.mul(10);
   if (atmosphereActive() && hasAtmoLevel(9)) s = s.mul(gasSoftcapDelay());
+  // Star Map, Black Hole Outskirts: tidal forces (rule) and their mastery (reward)
+  s = s.mul(Decimal.pow(STARMAP.bhSoftcap, completions("bh")));
+  if (ruleActive("tidal")) s = s.div(ruleTidalDiv());
+  s = s.div(tierRampDiv()); // Star Map: deeper tiers of a region
   return s.mul(fusionSoftcapDelay());
 }
 

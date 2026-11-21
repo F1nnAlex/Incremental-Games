@@ -241,6 +241,8 @@ registerLayer({
     decks: { name: "Auto Cloud Decks", buyable: "decks", unlocked: () => hasMilestone("fusion", "w6"), run: autoBuyMax("atmosphere", "decks") },
     storms: { name: "Auto Storm Bands", buyable: "storms", unlocked: () => hasMilestone("fusion", "w6"), run: autoBuyMax("atmosphere", "storms") },
     climb: { name: "Auto Climb", unlocked: () => hasMilestone("fusion", "w6"), run: autoPrestige("atmosphere") },
+    // Atmosphere upgrades are lost on every Stellar Wind, so 10 winds buys them back for you
+    upgrades: { name: "Auto Atmosphere Upgrades", upgrades: true, unlocked: () => hasMilestone("fusion", "w8"), run: autoBuyUpgrades("atmosphere") },
   },
 
   temp() {
@@ -252,6 +254,9 @@ registerLayer({
     if (hasUpgrade("atmosphere", 1)) g = g.mul(upgradeEffect("atmosphere", 1));
     if (hasMilestone("evolution", "e10")) g = g.mul(3);
     g = g.mul(fusionEnvelopeMult());
+    // Star Map, Starless Void: rule ÷100, reward ×(c+1)²
+    g = g.mul(E(completions("void") + 1).pow(2));
+    if (ruleActive("void")) g = g.div(ruleVoidDiv());
     out.gasGain = g;
     return out;
   },
