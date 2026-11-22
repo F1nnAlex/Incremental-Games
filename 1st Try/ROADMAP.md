@@ -17,9 +17,9 @@ The base game runs about **4h25** to Supergiant:
 | ------------ | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
 | 1 (done)     | Dust → Star      | Accretion, Collision, Atmosphere, Fusion                                                                                                                                                                                                                                                            | ~4.5 h          |
 | 2 (done)     | Star era, deeper | **Star Map**: challenges as birthplaces; new Fusion upgrades unlocked by completions; Supergiant gated behind the Star Map; Enriched Winds (gas +20% per wind, up to ×2) | built: +1.5 h → ~6 h |
-| **3 (next)** | Death of a star  | **Supernova** (layer 4): core collapse resets Fusion. Currency **Neutronium**. Supergiant burning stages (Ne → Mg → Si → Fe) refill the Periodic Table. Each Supernova, choose a **remnant**: Neutron Star (pulsar spin, steady bonuses) or Black Hole (accretion disk, huge but risky multipliers). **Accretion and Collision upgrade expansion** (5 + 5 new upgrades, see below) | +6–8 h          |
-| 4            | Heavy elements   | **Neutron Capture**: neutron-star mergers and r-process "drops" of rare heavy elements (Sr, Ag, Au, Pt, U), collected with rarity tiers into periods 4–7 of the Periodic Table                                                                                                                      | +8–10 h         |
-| 5            | Galaxy           | **Galaxy** (layer 5): you become a star cluster, then a galaxy. Manage star populations, dark matter halo, spiral arms                                                                                                                                                                              | +15 h+          |
+| 3 (done) | Death of a star  | **Supernova** (layer 4): core collapse resets Fusion. Currency **Neutronium**. Supergiant burning stages (Ne → Mg → Si → Fe) refill the Periodic Table. Each Supernova, choose a **remnant**: Neutron Star (pulsar spin, steady bonuses) or Black Hole (accretion disk, huge but risky multipliers). **Accretion and Collision upgrade expansion** (5 + 5 new upgrades, see below) | +6–8 h          |
+| 4 (done) | Heavy elements   | **Neutron Capture**: neutron-star mergers and r-process "drops" of rare heavy elements (Sr, Ag, Au, Pt, U), collected with rarity tiers into periods 4–7 of the Periodic Table                                                                                                                      | +8–10 h         |
+| **5 (next)** | Galaxy           | **Galaxy** (layer 5): you become a star cluster, then a galaxy. Manage star populations, dark matter halo, spiral arms                                                                                                                                                                              | +15 h+          |
 
 **Pacing rule for every update:**
 - Each stage takes about 1.3–1.5× as long as the stage before it.
@@ -151,3 +151,140 @@ From the simulator, taking the peak in each 10-minute window:
 - **Keys** continue the existing ones: Accretion uses 1–7 and 10, so the new ones are 11–15; Collision uses 1–8, so the new ones are 9–13.
 - **Hooks already exist** for every effect: `massSoftcapStart` and the log softcap in `accretion.js temp()`, `stardustMult` and `coreTemp` in `fusion.js`, Debris Disk's `passive` in `collision.js`, and the Li/Be/B checks in `fusion.js`.
 - **Tuning:** effect sizes and the Update 3 prices (1e47 / 1e52 kg, 1e23 / 1e28 Shards) get tuned with the simulator once the Supernova layer exists. Watch Eddington Luminosity and Shard Lattice most: Stardust boosts compound.
+
+---
+
+## Update 3 in detail: Supernova
+**Idea:** at the end of Update 2 your Supergiant starts carbon burning. Update 3 lets it burn all the way to an **iron core**. Once the iron core reaches the **Chandrasekhar limit (1.4 M☉)** it collapses: **Supernova**. That is the 4th reset layer. It wipes everything below it, including Fusion, and pays out **Neutronium**. Each Supernova leaves a **remnant** you choose, which shapes your next cycle.
+
+### Burning stages (Periodic Table)
+After Neon (from 30/30), the chain continues at real ignition temperatures. Each element has its own Shell (cost in Stardust).
+
+| Element | Fused from | Ignites at | Effect |
+|---|---|---|---|
+| **Mg** Magnesium | Neon | 1.2 GK | Mass softcap starts ×(Mg + 1)^0.01 later |
+| **Si** Silicon | Magnesium | 1.8 GK | Core temperature ×(1 + log₁₀ Si ÷ 20) |
+| **Fe** Iron | Silicon | 2.7 GK | The end of fusion: at 1.4 M☉ of Iron you can go Supernova |
+| **Ni** Nickel | discovered at your first Supernova (Ni-56 is what makes supernovae glow) | – | Neutronium gain ×1.5 |
+
+The Periodic Table grows to period 3 (Na … Ar) plus an "iron peak" strip for period 4 (Mn, Fe, Co, Ni). Unfilled cells stay faint for later updates.
+
+**Rules found while balancing (as built):**
+- **The core survives Stellar Winds.** Magnesium, Silicon and Iron are never blown away, so the iron core builds up over many generations. Without this, Auto Stellar Wind would reset it every few seconds.
+- **The core cannot outweigh the star.** Mg, Si and Fe are capped at your star's mass. Without the cap, the chain (which makes new material without using up its source) produced 10¹⁰ M☉ of Neon inside a 25 M☉ star, and Neutronium exploded. With it, Iron tops out at about 18× the Chandrasekhar limit, so Neutronium per Supernova is bounded and progress comes from multipliers and the number of Supernovae.
+- **The late stages fuse slowly** (base rate 1e-9 instead of 1e-6), so the first iron core takes about an hour.
+
+### The Supernova reset
+- **Requirement:** be a Supergiant with **1.4 M☉ (2.78e30 kg) of Iron**.
+- **Gain:** Neutronium = (Iron ÷ 1.4 M☉)^0.5 × multipliers.
+- **Resets:** Accretion, Evolution, Atmosphere, Collision and **Fusion**: Stardust (including total Stardust), elements, Shells, Compression, Fusion upgrades and your Stellar Wind count.
+- **Kept:** Star Map completions (and their rewards), discovered elements and Neutronium.
+- **Supernova milestones** (by number of Supernovae) give things back, IMR style:
+
+| Supernovae | Milestone |
+|---|---|
+| 1 | Start every cycle with 5 Stellar Winds (and their milestones). Keep Accretion and Shard upgrades on Supernova. |
+| 2 | Keep Fusion upgrades on Supernova. |
+| 3 | Start every cycle with 10 Stellar Winds. |
+| 4 | Keep Shell and Compression levels on Supernova. |
+| 6 | Start every cycle with 15 Stellar Winds (Auto Stellar Wind). |
+| 8 | Unlock Auto Supernova (it picks your last remnant). |
+| 12 | Start every cycle with 25 Stellar Winds. |
+
+### Remnant choice
+After every Supernova you pick what your core becomes. The choice lasts until the next Supernova, and each remnant gets stronger the more often you pick it (n = times chosen):
+- **Neutron Star** (steady): Stardust gain ×(1 + n), and the next Supernova gives ×1.5 Neutronium.
+- **Black Hole** (hungry): the mass softcap starts 1,000^n× later and gas gain ×(1 + n), with no Neutronium bonus. (A ×0.75 penalty made it strictly worse in the simulator: 12h45 to Kilonova against 11h for the Neutron Star.)
+
+Neutron Stars build up Neutronium; Black Holes make cycles faster.
+
+### Neutronium upgrades
+| # | Name | Cost | Effect |
+|---|---|---|---|
+| 1 | Remnant Glow | 1 | Mass softcap starts ×(total Neutronium + 1)² later |
+| 2 | Neutrino Burst | 2 | All fusion ×10 |
+| 3 | r-Process Seeds | 4 | Stardust gain ×(1 + log₁₀(total Neutronium + 1))² |
+| 4 | Light Echo | 8 | Shard gain ×1,000 |
+| 5 | Reverse Shock | 15 | Gas gain ×100 |
+| 6 | Magnetar | 30 | Neutronium gain ×2 |
+| 7 | Pulsar Wind Nebula | 60 | Star Map rewards count every completion twice |
+| 8 | Hypernova | 120 | Iron fusion ×100 |
+| 9 | Kilonova | 3,000 | End of Update 3: two neutron stars collide… (to be continued: Neutron Capture) |
+
+The Accretion and Collision expansion above (11–15 and 9–13) belongs to this update too.
+
+### Pacing (simulated, as built)
+| Milestone | Time |
+|---|---|
+| 30/30 (end of Update 2) | 5h45 |
+| First Supernova (cycle ≈ 75 min) | ≈ 7h |
+| Second Supernova (cycle ≈ 65 min) | ≈ 8h05 |
+| 8 Supernovae: Auto Supernova (cycles of 5–9 min) | ≈ 8h45 |
+| Kilonova, the end (3,000 Neutronium, ≈ 2,000 per hour by then) | ≈ 11h |
+
+Update 3 adds about 5h20. The first two cycles are the slow "first reset" ones; the final Neutronium grind is the longest stretch.
+
+---
+
+## Update 4 in detail: Neutron Capture
+**Idea:** almost everything heavier than iron is made by atoms **capturing neutrons**. Real stars do it in two ways, and Update 4 turns each into a mechanic:
+- the **s-process** (slow) in old stars: a steady, step-by-step **ladder**
+- the **r-process** (rapid) in neutron-star mergers (**kilonovae**): random **drops** of rare heavy elements with rarity tiers
+
+Together they fill periods 4–7 of the Periodic Table.
+
+### Unlock
+Buying **Kilonova** (3,000 Neutronium, the end of Update 3) opens the **Kilonova tab** (layer 5) and turns your remnant into a neutron source.
+
+### s-process: Free Neutrons and the capture ladder
+- **Free Neutrons** trickle out of your remnant: rate = (lifetime Neutronium)^0.5 per second, ×(1 + Neutron Star level). Lifetime Neutronium is never reset, so the rate never drops after a Kilonova.
+- Spend them on the **s-process ladder**, one element at a time in atomic order: Co → Cu → Zn → Ga → Ge → As → Se → Br → Kr (period 4), then Rb → Sr → Y → Zr → Nb → Mo (period 5). Each step costs ×3.2 more than the last (first step 100).
+- Every element on the ladder gives a small permanent boost, which cycles through Neutronium gain, Iron fusion, Stardust and the mass softcap.
+- The ladder is **never reset**, so it is the steady backbone of Update 4.
+
+### r-process: the Kilonova reset (layer 5)
+- **Requirement:** 4,000 Neutronium in hand, rising ×1.55 per Kilonova.
+- **Resets:** the Supernova layer (Neutronium, Supernova upgrades, Supernova count, remnant levels) and everything below it. Star Map completions, discoveries, the s-process ladder and r-process elements stay.
+- **Reward:** r-process drops. Drops = 2 + floor(log₂(Neutronium ÷ requirement)). Each drop rolls one heavy element:
+
+| Rarity | Chance | Elements |
+|---|---|---|
+| Common | 60% | Ba Barium, Ce Cerium, Nd Neodymium, Sm Samarium |
+| Uncommon | 28% | Ag Silver, Sn Tin, Te Tellurium, I Iodine |
+| Rare | 10% | Pt Platinum, Au Gold, Hg Mercury, Pb Lead |
+| Legendary | 2% | Th Thorium, U Uranium |
+
+- **Pity:** the 6th drop in a row without a Rare is always Rare, and the 20th without a Legendary is always Legendary. The first Legendary is always Thorium and the second Uranium, so the ending arrives within 40 drops.
+- **Duplicates:** a duplicate raises that element's level, and every element's effect grows with its level.
+- **Set bonus:** collecting all elements of a rarity gives a set bonus (Common: Neutronium ×2, Uncommon: all fusion ×10, Rare: Kilonova drops +1, Legendary: the ending).
+- **Randomness** is seeded and saved, so reloading doesn't reroll.
+
+### Kilonova milestones
+| Kilonovae | Milestone |
+|---|---|
+| 1 | Start every Kilonova cycle with 4 Supernovae (and their milestones) |
+| 2 | Keep Supernova upgrades on Kilonova |
+| 3 | Start with 8 Supernovae (Auto Supernova) |
+| 5 | Free Neutrons ×2; Auto Capture |
+| 8 | Start with 12 Supernovae; Auto Kilonova |
+
+### Periodic Table
+Becomes the full 18-column table (periods 1–7) once Kilonova is unlocked. The lanthanides (Ce, Nd, Sm) and actinides (Th, U) sit in two strips below, and each heavy element's cell shows its level and rarity colour.
+
+### End of Update 4
+Collect **Uranium**: the heaviest natural element. Teaser for Update 5: your remnants and stars start to gather into a cluster (Galaxy).
+
+### Pacing (simulated, as built)
+| Milestone | Time |
+|---|---|
+| Kilonova upgrade (end of Update 3) | ≈ 11h05 |
+| First Kilonova (cycle ≈ 60 min) | ≈ 12h05 |
+| 8 Kilonovae: Auto Kilonova (cycles of 33–60 min) | ≈ 17h15 |
+| Uranium, the end | ≈ 19h10 |
+
+Update 4 adds about 8h. Random drops can shift this a little either way, but pity guarantees Uranium within 40 drops. The last two s-process steps (Nb, Mo) are usually still open at the end, a goal that carries into Update 5.
+
+**Found while balancing:**
+- Free Neutrons based on *total* Neutronium fell after every Kilonova and stalled the ladder at Krypton, so they use *lifetime* Neutronium.
+- With 1 drop per Kilonova and 25-drop pity, Uranium took about 50 hours.
+- A fixed random seed gave every player the same unlucky start (no Uncommon in the first 24 drops), so each new game now gets its own seed.

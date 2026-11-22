@@ -71,7 +71,7 @@ registerLayer({
       if (hasMilestone("collision", "c12")) keep.push("buyables.gravity");
       return keep;
     },
-    passive: () => (hasUpgrade("collision", 6) ? 0.1 : 0),
+    passive: () => (hasUpgrade("collision", 11) ? 0.5 : hasUpgrade("collision", 6) ? 0.1 : 0),
     onReset: () => {
       const [stage, mass] = collisionStart();
       player.evolution.stage = E(stage);
@@ -114,6 +114,53 @@ registerLayer({
       desc: "Every upgrade feeds the next. Mass gain ×1.1 for each upgrade you own (all layers).",
       cost: E(300),
       effect: () => Decimal.pow(1.1, totalUpgradesOwned()),
+      effectDisplay: (eff) => formatMult(eff),
+    },
+    // ---------- Update 3 expansion: priced for the end of Update 2 and for Update 3 ----------
+    9: {
+      title: "Impact Heating",
+      icon: "♨",
+      desc: "Every impact heats your core. Core temperature ×(1 + log₁₀ Shards ÷ 20).",
+      cost: E(1e13),
+      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlockText: "Become a Supergiant to unlock.",
+      effect: () => player.collision.shards.add(1).log10().div(20).add(1),
+      effectDisplay: (eff) => formatMult(eff),
+    },
+    10: {
+      title: "Spallation Showers",
+      icon: "⁂",
+      desc: "Shards shatter nuclei. Lithium, Beryllium and Boron effects ×2.",
+      cost: E(1e17),
+      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlockText: "Become a Supergiant to unlock.",
+    },
+    11: {
+      title: "Debris Halo",
+      icon: "◌",
+      desc: "A halo of debris rains down on you. Debris Disk gives 50% of your Shard gain every second instead of 10%.",
+      cost: E(1e19),
+      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlockText: "Become a Supergiant to unlock.",
+    },
+    12: {
+      title: "Shard Lattice",
+      icon: "⌗",
+      desc: "Shards line up into a crystal lattice. Stardust gain ×log₁₀ Shards.",
+      cost: E(1e23),
+      unlocked: () => supernovae() > 0,
+      unlockText: "Go Supernova to unlock.",
+      effect: () => player.collision.shards.max(10).log10(),
+      effectDisplay: (eff) => formatMult(eff),
+    },
+    13: {
+      title: "Iron Meteorites",
+      icon: "⬢",
+      desc: "Iron-rich debris falls into your core. Iron fusion ×log₁₀ Shards.",
+      cost: E(1e28),
+      unlocked: () => supernovae() > 0,
+      unlockText: "Go Supernova to unlock.",
+      effect: () => player.collision.shards.max(10).log10(),
       effectDisplay: (eff) => formatMult(eff),
     },
   },
@@ -178,7 +225,9 @@ function shardMult() {
   if (hasUpgrade("collision", 3)) m = m.mul(upgradeEffect("collision", 3));
   // Star Map: Hypervelocity Stream (rule: no Shards; reward: more Shards)
   if (ruleActive("stream")) return E(0);
-  m = m.mul(E(completions("stream") + 1).pow(1.5));
+  m = m.mul(E(rewardLevel("stream") + 1).pow(1.5));
+  if (hasUpgrade("supernova", 4)) m = m.mul(1000); // Light Echo
+  m = m.mul(kilonovaShardMult()); // Tellurium
   return m.mul(fusionShardMult());
 }
 

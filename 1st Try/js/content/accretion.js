@@ -162,6 +162,53 @@ registerLayer({
       effect: () => E(evo() + 1),
       effectDisplay: (eff) => formatMult(eff),
     },
+    // ---------- Update 3 expansion: priced for the end of Update 2 and for Update 3 ----------
+    11: {
+      title: "Stellar Wind Capture",
+      icon: "⤓",
+      desc: "Old winds fall back onto you. Mass softcap starts ×(Stellar Winds + 1) later.",
+      cost: E(1e37),
+      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlockText: "Become a Supergiant to unlock.",
+      effect: () => E(generations() + 1),
+      effectDisplay: (eff) => formatMult(eff),
+    },
+    12: {
+      title: "Accretion Disk",
+      icon: "◍",
+      desc: "A spinning disk feeds you steadily. The hard mass softcap starts ×10 later.",
+      cost: E(1e42),
+      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlockText: "Become a Supergiant to unlock.",
+    },
+    13: {
+      title: "Eddington Luminosity",
+      icon: "☼",
+      desc: "You shine as bright as your mass allows. Stardust gain ×log₁₀(mass in kg).",
+      cost: E(1e44),
+      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlockText: "Become a Supergiant to unlock.",
+      effect: () => player.accretion.mass.max(10).log10(),
+      effectDisplay: (eff) => formatMult(eff),
+    },
+    14: {
+      title: "Bondi Accretion",
+      icon: "⊛",
+      desc: "Your remnant's gravity swallows whole clouds. Mass softcap starts ×(Neutronium + 1)³ later.",
+      cost: E(1e47),
+      unlocked: () => supernovae() > 0,
+      unlockText: "Go Supernova to unlock.",
+      effect: () => player.supernova.neutronium.add(1).pow(3),
+      effectDisplay: (eff) => formatMult(eff),
+    },
+    15: {
+      title: "Hypermassive Core",
+      icon: "⬤",
+      desc: "A core heavier than any star should have. Core temperature ×2.",
+      cost: E(1e52),
+      unlocked: () => supernovae() > 0,
+      unlockText: "Go Supernova to unlock.",
+    },
     10: {
       title: "Debris Ring",
       icon: "◎",
@@ -228,7 +275,7 @@ registerLayer({
     const softcapped = gain.gt(scStart);
     gain = softcap(gain, scStart, massSoftcapPower());
     // Second, much harder softcap: far above the first one, growth becomes almost linear
-    gain = softcap(gain, scStart.mul(1000), 10, "log");
+    gain = softcap(gain, scStart.mul(hasUpgrade("accretion", 12) ? 1e4 : 1000), 10, "log"); // Accretion Disk: ×10 later
 
     // Atmosphere: a thick envelope helps the core, but past ~10 M⊕ the core has cleared its orbit
     gain = gain.mul(atmosphereCoreMult()).mul(isolationMult());
@@ -246,7 +293,7 @@ registerLayer({
 function cohesionBase() {
   let base = hasUpgrade("accretion", 5) ? 2.2 : 2;
   if (hasUpgrade("collision", 4)) base += 0.05;
-  base += STARMAP.dustyCohesion * completions("dusty");
+  base += STARMAP.dustyCohesion * rewardLevel("dusty");
   // Star Map, Hypervelocity Stream: debris slides off you
   if (ruleActive("stream")) base -= RULES.stream.cohesion(ruleTier());
   return base;
@@ -275,7 +322,8 @@ function massSoftcapStart() {
   if (hasMilestone("evolution", "e12")) s = s.mul(10);
   if (atmosphereActive() && hasAtmoLevel(9)) s = s.mul(gasSoftcapDelay());
   // Star Map, Black Hole Outskirts: tidal forces (rule) and their mastery (reward)
-  s = s.mul(Decimal.pow(STARMAP.bhSoftcap, completions("bh")));
+  s = s.mul(Decimal.pow(STARMAP.bhSoftcap, rewardLevel("bh")));
+  s = s.mul(supernovaSoftcapMult()); // Update 3: Black Hole remnant, Remnant Glow, Stellar Wind Capture, Bondi Accretion
   if (ruleActive("tidal")) s = s.div(ruleTidalDiv());
   s = s.div(tierRampDiv()); // Star Map: deeper tiers of a region
   return s.mul(fusionSoftcapDelay());

@@ -8,6 +8,7 @@
 // the enriched remains. You keep Stardust (and Shells, upgrades, discoveries).
 
 const HYDROGEN_FRACTION = 0.74;
+const CHANDRASEKHAR = 1.4 * 1.989e30; // kg: an iron core this heavy collapses (Supernova)
 
 // The fusion chain: each element is fused from the one before it
 const CHAIN = [
@@ -16,16 +17,22 @@ const CHAIN = [
   { sym: "O", from: "C", ignite: 2e8, base: 1e-6 },
   // Carbon burning: only once every Star Map region is completed
   { sym: "Ne", from: "O", ignite: 6e8, base: 1e-6, needs: () => totalCompletions() >= MAX_COMPLETIONS },
+  // Update 3: the late burning stages of a Supergiant, all the way to iron
+  // They are slow on purpose (ELEM.lateBase): iron builds up over many generations.
+  { sym: "Mg", from: "Ne", ignite: 1.2e9, late: true, needs: () => isDiscovered("Ne") },
+  { sym: "Si", from: "Mg", ignite: 1.8e9, late: true, needs: () => isDiscovered("Mg") },
+  { sym: "Fe", from: "Si", ignite: 2.7e9, late: true, needs: () => isDiscovered("Si") },
 ];
 const CHAIN_BY_SYM = Object.fromEntries(CHAIN.map((c) => [c.sym, c]));
 
 // [first cost, cost growth] in Stardust. Each level doubles that element's fusion.
-const SHELL_COSTS = { He: [1, 5], C: [5, 6], O: [20, 8], Ne: [1e6, 10] };
+const SHELL_COSTS = { He: [1, 5], C: [5, 6], O: [20, 8], Ne: [1e6, 10], Mg: [1e7, 10], Si: [1e8, 10], Fe: [1e9, 10] };
 
 // Balance knobs for the element effects
 const ELEM = {
   oxygenStardust: 5, // Stardust gain ×(1 + log₁₀ O / this)
   nitrogenAt: 1e28, // kg of Oxygen needed to discover Nitrogen (the CNO cycle)
+  lateBase: 1e-9, // base fusion rate of Magnesium, Silicon and Iron
   windGas: 0.2, windGasCap: 2, // Enriched Winds milestone: gas gain ×(1 + windGas × Stellar Winds), at most ×windGasCap
 };
 
@@ -34,9 +41,16 @@ function elemLog(sym) {
   return amountOf(sym).add(1).log10();
 }
 
+/** Your star's mass, up to a Supergiant's: the most Hydrogen fuel, and the most core elements, it can hold. */
+function elementCap() {
+  return player.accretion.mass.min(STAGES[MAX_STAGE].mass);
+}
+
 function amountOf(sym) {
-  if (sym === "H") return player.accretion.mass.min(STAGES[MAX_STAGE].mass).mul(HYDROGEN_FRACTION);
-  return player.fusion.elements[sym] || E(0);
+  if (sym === "H") return elementCap().mul(HYDROGEN_FRACTION);
+  const x = player.fusion.elements[sym] || E(0);
+  // The core elements (Mg, Si, Fe) cannot outweigh your star, so the iron core has a real limit
+  return CHAIN_BY_SYM[sym] && CHAIN_BY_SYM[sym].late ? x.min(elementCap()) : x;
 }
 
 function isDiscovered(sym) {
@@ -61,8 +75,10 @@ function coreTemp() {
   let t = E(1e7).mul(player.accretion.mass.min(cap).div(1.6e29).pow(0.8));
   if (!(typeof ruleActive === "function" && ruleActive("cold"))) t = t.mul(buyableEffect("fusion", "compression")); // Cold Molecular Cloud: no Compression
   if (hasMilestone("evolution", "e17")) t = t.mul(1.5);
+  t = t.mul(siliconTempMult());
   // Star Map, Cold Molecular Cloud: rule ÷4, reward ×(1 + 0.1c)
-  t = t.mul(1 + STARMAP.coldTemp * completions("cold"));
+  t = t.mul(1 + STARMAP.coldTemp * rewardLevel("cold"));
+  t = t.mul(supernovaTempMult()); // Update 3: Hypermassive Core, Impact Heating
   if (ruleActive("cold")) t = t.div(ruleColdDiv());
   return t;
 }
@@ -74,23 +90,28 @@ function fusionRate(sym) {
   const t = tmp.fusion && tmp.fusion.temp ? tmp.fusion.temp : coreTemp();
   if (t.lt(c.ignite)) return E(0);
   // Fusion is very sensitive to temperature: hotter cores burn much faster (up to ×100)
-  let r = E(c.base).mul(t.div(c.ignite).pow(2).min(100));
+  let r = E(c.late ? ELEM.lateBase : c.base).mul(t.div(c.ignite).pow(2).min(100));
   if (!(typeof ruleActive === "function" && ruleActive("cold"))) r = r.mul(buyableEffect("fusion", "shell" + sym)); // Cold Molecular Cloud: no Shells
   r = r.mul(allFusionMult());
   if (sym === "He" && isDiscovered("N")) r = r.mul(10);
   if (sym === "C" && hasUpgrade("fusion", 4)) r = r.mul(elemLog("He").add(1));
+  if (sym === "Fe" && hasUpgrade("supernova", 8)) r = r.mul(100); // Hypernova
+  if (sym === "Fe") r = r.mul(kilonovaIronFusionMult()); // s-process ladder, Samarium
+  if (sym === "Fe" && hasUpgrade("collision", 13)) r = r.mul(player.collision.shards.max(10).log10()); // Iron Meteorites
   return r;
 }
 
 /** Compression: core temperature ×this per level (Neutrino Cooling and the Cold Molecular Cloud raise it). */
 function compressionBase() {
-  return (hasUpgrade("fusion", 6) ? 1.15 : 1.1) + STARMAP.coldCompression * completions("cold");
+  return (hasUpgrade("fusion", 6) ? 1.15 : 1.1) + STARMAP.coldCompression * rewardLevel("cold");
 }
 
 function allFusionMult() {
   let m = E(1);
   if (hasMilestone("evolution", "e18")) m = m.mul(3);
   if (hasUpgrade("fusion", 8)) m = m.mul(player.fusion.discovered.length);
+  if (hasUpgrade("supernova", 2)) m = m.mul(10); // Neutrino Burst
+  m = m.mul(kilonovaAllFusionMult()); // Uncommon set
   return m;
 }
 
@@ -140,19 +161,19 @@ function fusionEnvelopeMult() {
   let m = elemLog("O").div(10).add(1);
   if (hasUpgrade("fusion", 3)) m = m.mul(2);
   m = m.mul(windGasMult());
-  if (isDiscovered("B")) m = m.mul(2);
+  if (isDiscovered("B")) m = m.mul(2 * lightElementBoost());
   return m;
 }
 
 function fusionShardMult() {
   let m = elemLog("C").add(1);
   if (hasUpgrade("fusion", 2)) m = m.mul(totalStardust().add(1).sqrt());
-  if (isDiscovered("Li")) m = m.mul(3);
+  if (isDiscovered("Li")) m = m.mul(3 * lightElementBoost());
   return m;
 }
 
 function fusionSoftcapDelay() {
-  let m = amountOf("He").add(1).pow(0.01);
+  let m = amountOf("He").add(1).pow(0.01).mul(magnesiumSoftcapDelay());
   if (hasUpgrade("fusion", 1)) m = m.mul(radiationPressure());
   return m;
 }
@@ -162,12 +183,22 @@ function fusionSoftcapPowerBonus() {
 }
 
 function fusionGravityBonus() {
-  return isDiscovered("Be") ? 0.002 : 0;
+  return isDiscovered("Be") ? 0.002 * lightElementBoost() : 0;
 }
 
 /** Stellar Cartography: Stardust ×(1 + Star Map completions / 10). */
 function cartographyMult() {
   return E(1 + totalCompletions() / STARMAP.cartographyDiv);
+}
+
+/** Magnesium: the mass softcap starts ×(Mg + 1)^0.01 later. */
+function magnesiumSoftcapDelay() {
+  return amountOf("Mg").add(1).pow(0.01);
+}
+
+/** Silicon: core temperature ×(1 + log₁₀ Si ÷ 20). */
+function siliconTempMult() {
+  return elemLog("Si").div(20).add(1);
 }
 
 function neonStardustMult() {
@@ -183,7 +214,8 @@ function stardustMult() {
   let m = E(Math.max(1, evo() - 13));
   if (hasMilestone("evolution", "e16")) m = m.mul(2);
   m = m.mul(oxygenStardustMult()).mul(neonStardustMult());
-  m = m.mul(E(completions("remnant") + 1).pow(STARMAP.remnantPow));
+  m = m.mul(E(rewardLevel("remnant") + 1).pow(STARMAP.remnantPow));
+  m = m.mul(supernovaStardustMult()); // Update 3: Neutron Star, r-Process Seeds, Eddington Luminosity, Shard Lattice
   if (hasUpgrade("fusion", 10)) m = m.mul(cartographyMult());
   if (hasMilestone("fusion", "w12")) m = m.mul(Decimal.pow(1.1, player.fusion.discovered.length));
   if (hasUpgrade("fusion", 9)) m = m.mul(Decimal.pow(1.05, totalMilestonesReached()));
@@ -197,6 +229,10 @@ const TABLE = [
   ["H", 1, "Hydrogen", 1, 1], ["He", 2, "Helium", 1, 8],
   ["Li", 3, "Lithium", 2, 1], ["Be", 4, "Beryllium", 2, 2], ["B", 5, "Boron", 2, 3], ["C", 6, "Carbon", 2, 4],
   ["N", 7, "Nitrogen", 2, 5], ["O", 8, "Oxygen", 2, 6], ["F", 9, "Fluorine", 2, 7], ["Ne", 10, "Neon", 2, 8],
+  ["Na", 11, "Sodium", 3, 1], ["Mg", 12, "Magnesium", 3, 2], ["Al", 13, "Aluminium", 3, 3], ["Si", 14, "Silicon", 3, 4],
+  ["P", 15, "Phosphorus", 3, 5], ["S", 16, "Sulfur", 3, 6], ["Cl", 17, "Chlorine", 3, 7], ["Ar", 18, "Argon", 3, 8],
+  // Period 4, only the "iron peak" (the d-block is too wide for this compact table)
+  ["Mn", 25, "Manganese", 4, 3], ["Fe", 26, "Iron", 4, 4], ["Co", 27, "Cobalt", 4, 5], ["Ni", 28, "Nickel", 4, 6],
 ];
 
 // The elements you can get right now. kind: fuel | fusion | discovery. Everything else comes in later updates.
@@ -236,6 +272,28 @@ const ELEMENT_INFO = {
     about: "Boosts Stardust gain.",
     effect: () => "Stardust gain " + formatMult(neonStardustMult()) + ".",
   },
+  Mg: {
+    kind: "fusion",
+    about: "Makes the mass gain softcap start later.",
+    effect: () => "Mass gain softcap starts " + formatMult(magnesiumSoftcapDelay()) + " later.",
+  },
+  Si: {
+    kind: "fusion",
+    about: "Heats your core.",
+    effect: () => "Core temperature " + formatMult(siliconTempMult()) + ".",
+  },
+  Fe: {
+    kind: "fusion",
+    about: "The end of fusion. With enough Iron your core collapses: Supernova.",
+    effect: () => "Iron core: " + formatMass(amountOf("Fe")) + " of " + formatMass(ironLimit()) + " (the Chandrasekhar limit). At the limit you can go Supernova.",
+  },
+  // Nickel-56 is what makes a supernova glow for months
+  Ni: {
+    kind: "discovery",
+    about: "Neutronium gain ×1.5.",
+    need: () => "Made in the blast of your first Supernova.",
+    effect: () => "Neutronium gain ×1.5.",
+  },
 };
 for (const [sym, , name] of TABLE) if (ELEMENT_INFO[sym]) ELEMENT_INFO[sym].name = name;
 const OBTAINABLE = Object.keys(ELEMENT_INFO);
@@ -249,7 +307,10 @@ function elementStatus(sym) {
   }
   const c = CHAIN_BY_SYM[sym];
   const t = tmp.fusion.temp;
-  if (c.needs && !c.needs()) return { state: "todo", text: "Complete every Star Map region (" + totalCompletions() + "/" + MAX_COMPLETIONS + "). Then your core starts carbon burning and fuses Oxygen into Neon at " + formatTemp(c.ignite) + "." };
+  if (c.needs && !c.needs()) {
+    if (sym === "Ne") return { state: "todo", text: "Complete every Star Map region (" + totalCompletions() + "/" + MAX_COMPLETIONS + "). Then your core starts carbon burning and fuses Oxygen into Neon at " + formatTemp(c.ignite) + "." };
+    return { state: "todo", text: "Fused from " + ELEMENT_INFO[c.from].name + " at " + formatTemp(c.ignite) + ". Get " + ELEMENT_INFO[c.from].name + " first." };
+  }
   const fusing = fusionRate(sym).gt(0);
   if (fusing) return { state: "fusing", text: "Fusing from " + ELEMENT_INFO[c.from].name + "." };
   if (isDiscovered(sym)) return { state: "found", text: "Needs a " + formatTemp(c.ignite) + " core to keep fusing (yours: " + formatTemp(t) + ")." };
@@ -328,7 +389,8 @@ registerLayer({
       // Elements fly away with the wind (12 winds: keep 10%)
       // (born in a Star Map region, far from home, you keep none)
       const keep = currentRegion() ? 0 : hasUpgrade("fusion", 11) ? 0.25 : hasMilestone("fusion", "w9") ? 0.1 : 0;
-      for (const c of CHAIN) player.fusion.elements[c.sym] = player.fusion.elements[c.sym].mul(keep);
+      // The core stays: Magnesium, Silicon and Iron are never blown away
+      for (const c of CHAIN) if (!c.late) player.fusion.elements[c.sym] = player.fusion.elements[c.sym].mul(keep);
       // Your collision count is reset too; milestones give some collisions back for free
       player.collision.resets = startingCollisions();
       const [stage, mass] = hasMilestone("fusion", "w7") && !currentRegion() ? [PLANET_STAGE, STAGES[PLANET_STAGE].mass] : collisionStart();
@@ -489,8 +551,11 @@ registerLayer({
     for (const c of CHAIN) {
       const rate = fusionRate(c.sym);
       if (rate.lte(0)) continue;
-      player.fusion.elements[c.sym] = player.fusion.elements[c.sym].add(amountOf(c.from).mul(rate).mul(dt));
-      if (!isDiscovered(c.sym)) discover(c.sym);
+      // stored up to a Supergiant's mass; amountOf() also caps it at your current mass
+      let x = player.fusion.elements[c.sym].add(amountOf(c.from).mul(rate).mul(dt));
+      if (c.late) x = x.min(STAGES[MAX_STAGE].mass);
+      player.fusion.elements[c.sym] = x;
+      if (!isDiscovered(c.sym) && player.fusion.elements[c.sym].gt(0)) discover(c.sym);
     }
     for (const sym in ELEMENT_INFO) {
       const info = ELEMENT_INFO[sym];
@@ -543,8 +608,10 @@ function buildPeriodicTable(panel) {
     cells[sym] = { cell, amount };
     grid.append(cell);
   }
-  panel.append(grid);
-  panel.append(h("p", { class: "pt-later" }, "Faint cells are elements for later. Heavier elements need a hotter, more violent star."));
+  const later = h("p", { class: "pt-later" }, "Faint cells are elements for later. The bottom row is the iron peak of period 4. Anything heavier than iron needs something more violent than a star.");
+  // Update 4: once Neutron Capture is unlocked, the full 18-column table replaces the compact one
+  const full = buildFullTable();
+  panel.append(grid, later, full.box);
 
   panel.append(h("h3", {}, "Your elements"));
   const list = h("div", { class: "pt-rows" });
@@ -567,12 +634,17 @@ function buildPeriodicTable(panel) {
   const STATE_TEXT = { fusing: "Fusing", found: "Found", todo: "Not yet" };
 
   return function update() {
+    const showFull = typeof kilonovaUnlocked === "function" && kilonovaUnlocked();
+    setVisible(grid, !showFull);
+    setVisible(later, !showFull);
+    setVisible(full.box, showFull);
+    if (showFull) full.update();
     setText(count, String(OBTAINABLE.filter(isDiscovered).length));
     setText(temp, formatTemp(tmp.fusion.temp));
 
     // Show found elements plus the next one you can work towards (in chain order)
     let shownTodo = false;
-    for (const sym of ["H", "He", "C", "O", "N", "Li", "Be", "B", "Ne"]) {
+    for (const sym of ["H", "He", "C", "O", "N", "Li", "Be", "B", "Ne", "Mg", "Si", "Fe", "Ni"]) {
       const r = rows[sym];
       const s = elementStatus(sym);
       const visible = s.state !== "todo" || !shownTodo;
@@ -598,5 +670,76 @@ function buildPeriodicTable(panel) {
       c.cell.title = ELEMENT_INFO[sym].name + ": " + s.text;
       setText(c.amount, s.state === "todo" ? "" : ELEMENT_INFO[sym].kind === "discovery" ? "✓" : formatShortMass(amountOf(sym)));
     }
+  };
+}
+
+// ---------- The full periodic table (Update 4) ----------
+
+const ALL_SYMBOLS = ("H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr " +
+  "Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn " +
+  "Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og").split(" ");
+
+/** Grid position [row, column] of element z: periods 1–7 in rows 1–7, lanthanides row 9, actinides row 10. */
+function tablePosition(z) {
+  if (z === 1) return [1, 1];
+  if (z === 2) return [1, 18];
+  const starts = [[3, 2], [11, 3], [19, 4], [37, 5], [55, 6], [87, 7]];
+  for (let i = starts.length - 1; i >= 0; i--) {
+    const [first, period] = starts[i];
+    if (z < first) continue;
+    const k = z - first; // 0-based position in the period
+    if (period <= 3) return [period, k < 2 ? k + 1 : k + 11]; // s-block then p-block
+    if (period <= 5) return [period, k + 1];
+    // periods 6–7: the f-block goes into its own row below
+    if (k < 2) return [period, k + 1];
+    if (k < 17) return [period + 3, k + 2]; // La–Lu / Ac–Lr strip, columns 4–18
+    return [period, k - 13];
+  }
+  return [1, 1];
+}
+
+/** How you have this element: fusing / found / s (s-process) / r (r-process, with rarity) / none. */
+function tableState(sym) {
+  if (ELEMENT_INFO[sym]) {
+    const st = elementStatus(sym).state;
+    return st === "todo" ? { state: "none" } : { state: st };
+  }
+  if (typeof LADDER !== "undefined") {
+    const i = LADDER.findIndex((e) => e[0] === sym);
+    if (i >= 0 && i < ladderStep()) return { state: "s" };
+  }
+  if (typeof R_BY_SYM !== "undefined" && R_BY_SYM[sym] && rElemLevel(sym) > 0) return { state: "r", rarity: R_BY_SYM[sym][3], level: rElemLevel(sym) };
+  return { state: "none" };
+}
+
+function buildFullTable() {
+  const grid = h("div", { class: "ptf-grid" });
+  const cells = {};
+  ALL_SYMBOLS.forEach((sym, i) => {
+    const z = i + 1;
+    const [row, col] = tablePosition(z);
+    const tag = h("div", { class: "ptf-tag" });
+    const cell = h("div", { class: "ptf-cell", style: "grid-row:" + row + ";grid-column:" + col, title: sym + " (" + z + ")" },
+      h("div", { class: "ptf-z" }, String(z)), h("div", { class: "ptf-sym" }, sym), tag);
+    cells[sym] = { cell, tag };
+    grid.append(cell);
+  });
+  // markers where the f-block strips belong
+  grid.append(h("div", { class: "ptf-marker", style: "grid-row:6;grid-column:3" }, "La–Lu"));
+  grid.append(h("div", { class: "ptf-marker", style: "grid-row:7;grid-column:3" }, "Ac–Lr"));
+  grid.append(h("div", { class: "ptf-gap", style: "grid-row:8;grid-column:1 / span 18" }));
+  const legend = h("p", { class: "pt-later" }, "Gold: fusing in your core. Teal: found. Violet: captured by the s-process. Coloured borders: r-process elements from Kilonovae (grey Common, green Uncommon, blue Rare, gold Legendary). Faint: not yet.");
+  const box = h("div", { class: "ptf-box" }, h("div", { class: "ptf-scroll" }, grid), legend);
+  return {
+    box,
+    update() {
+      for (const sym of ALL_SYMBOLS) {
+        const c = cells[sym];
+        const st = tableState(sym);
+        for (const k of ["fusing", "found", "s", "r"]) setClass(c.cell, k, st.state === k);
+        if (st.state === "r") c.cell.style.setProperty("--rar", RARITIES[st.rarity].color);
+        setText(c.tag, st.state === "r" ? "Lv " + st.level : st.state === "s" ? "s" : "");
+      }
+    },
   };
 }

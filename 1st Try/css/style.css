@@ -739,3 +739,73 @@ kbd {
   .sm-map { aspect-ratio: 4 / 5; }
   .sm-name { font-size: 0.68rem; white-space: normal; max-width: 80px; text-align: center; line-height: 1.1; }
 }
+
+/* ---------- Supernova: remnant choice ---------- */
+.rem-box { margin: 12px 0 16px; padding: 12px 14px; border: 1px solid var(--border); border-top: 3px solid #ff9f43; background: var(--panel); }
+.rem-box.pending { border-color: #ff9f43; box-shadow: 0 0 18px #ff9f4333; }
+.rem-title { font-family: var(--font-ui); font-weight: 600; font-size: 1.05rem; margin-bottom: 10px; color: #ffc48a; }
+.rem-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rem-card { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); background: var(--panel-2); }
+.rem-card.active { border-color: var(--k); box-shadow: inset 0 0 0 1px var(--k); }
+.rem-ns { --k: #7dd3fc; }
+.rem-bh { --k: #c084fc; }
+.rem-head { display: flex; align-items: baseline; gap: 8px; }
+.rem-icon { color: var(--k); font-size: 1.1rem; }
+.rem-name { font-family: var(--font-ui); font-weight: 600; color: var(--k); }
+.rem-level { margin-left: auto; font-size: 0.8rem; color: var(--muted); }
+.rem-tagline { font-size: 0.85rem; color: var(--muted); }
+.rem-effect { font-size: 0.9rem; color: var(--good); }
+.rem-choose { margin-top: auto; padding: 8px 10px; font-family: var(--font-ui); font-weight: 600; border: 1px solid var(--k); background: transparent; color: var(--text); cursor: pointer; }
+.rem-choose:hover { background: color-mix(in srgb, var(--k) 20%, transparent); }
+@media (max-width: 720px) { .rem-cards { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- Full periodic table (Update 4) ---------- */
+.ptf-box { margin: 8px 0 4px; }
+.ptf-scroll { overflow-x: auto; padding-bottom: 4px; }
+.ptf-grid { display: grid; grid-template-columns: repeat(18, minmax(30px, 1fr)); gap: 2px; min-width: 600px; }
+.ptf-cell { position: relative; padding: 2px 3px 3px; border: 1px solid var(--border); background: var(--panel); opacity: 0.35; min-height: 38px; }
+.ptf-z { font-size: 0.55rem; color: var(--muted); line-height: 1; }
+.ptf-sym { font-family: var(--font-ui); font-weight: 600; font-size: 0.85rem; line-height: 1.2; }
+.ptf-tag { font-size: 0.55rem; line-height: 1; color: var(--muted); }
+.ptf-cell.fusing, .ptf-cell.found, .ptf-cell.s, .ptf-cell.r { opacity: 1; }
+.ptf-cell.fusing { border-color: #ffd54f; background: #ffd54f1f; }
+.ptf-cell.fusing .ptf-sym { color: #ffd54f; }
+.ptf-cell.found { border-color: #4dd0c8; background: #4dd0c81a; }
+.ptf-cell.found .ptf-sym { color: #4dd0c8; }
+.ptf-cell.s { border-color: #a78bfa; background: #a78bfa1a; }
+.ptf-cell.s .ptf-sym { color: #c4b5fd; }
+.ptf-cell.r { border: 2px solid var(--rar); background: color-mix(in srgb, var(--rar) 14%, transparent); }
+.ptf-cell.r .ptf-sym, .ptf-cell.r .ptf-tag { color: var(--rar); }
+.ptf-marker { display: flex; align-items: center; justify-content: center; font-size: 0.6rem; color: var(--muted); border: 1px dashed var(--border); }
+.ptf-gap { height: 6px; }
+
+/* ---------- Kilonova tab ---------- */
+.cap-box { margin: 12px 0 16px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--border); border-top: 3px solid #fbbf24; }
+.cap-box h3 { margin: 0 0 6px; font-family: var(--font-ui); color: #fcd34d; }
+.cap-info { font-size: 0.9rem; color: var(--muted); margin-bottom: 8px; }
+.cap-steps { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 3px; margin-bottom: 10px; }
+.cap-step { padding: 3px 2px; text-align: center; border: 1px solid var(--border); opacity: 0.45; }
+.cap-step.done { opacity: 1; border-color: #a78bfa; background: #a78bfa1f; }
+.cap-step.next { opacity: 1; border-style: dashed; border-color: #fbbf24; }
+.cap-z { font-size: 0.55rem; color: var(--muted); }
+.cap-sym { font-family: var(--font-ui); font-weight: 600; font-size: 0.85rem; }
+.cap-btn { padding: 8px 12px; font-family: var(--font-ui); font-weight: 600; border: 1px solid var(--border-strong); background: var(--panel-2); color: var(--muted); cursor: not-allowed; }
+.cap-btn.can { border-color: #a78bfa; color: var(--text); background: #a78bfa22; cursor: pointer; }
+.cap-last { font-size: 0.95rem; margin-bottom: 4px; color: #fcd34d; }
+.rel-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rel-group { border: 1px solid var(--border); border-left: 3px solid var(--rar); padding: 8px 10px; }
+.rel-head { font-family: var(--font-ui); font-weight: 600; color: var(--rar); margin-bottom: 6px; }
+.rel-cards { display: flex; flex-direction: column; gap: 4px; }
+.rel-card { padding: 4px 6px; background: var(--panel-2); opacity: 0.55; }
+.rel-card.owned { opacity: 1; box-shadow: inset 2px 0 0 var(--rar); }
+.rel-top { display: flex; gap: 6px; align-items: baseline; }
+.rel-sym { font-family: var(--font-ui); font-weight: 700; color: var(--rar); min-width: 22px; }
+.rel-name { font-size: 0.85rem; }
+.rel-level { margin-left: auto; font-size: 0.75rem; color: var(--muted); }
+.rel-effect { font-size: 0.8rem; color: var(--good); }
+.rel-set { margin-top: 6px; font-size: 0.8rem; color: var(--muted); }
+.rel-set.active { color: var(--rar); }
+@media (max-width: 720px) {
+  .rel-groups { grid-template-columns: minmax(0, 1fr); }
+  .cap-steps { grid-template-columns: repeat(8, minmax(0, 1fr)); }
+}

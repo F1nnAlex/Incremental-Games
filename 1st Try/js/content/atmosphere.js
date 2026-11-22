@@ -256,7 +256,8 @@ registerLayer({
     if (hasMilestone("evolution", "e10")) g = g.mul(3);
     g = g.mul(fusionEnvelopeMult());
     // Star Map, Starless Void: rule ÷100, reward ×(c+1)²
-    g = g.mul(E(completions("void") + 1).pow(2));
+    g = g.mul(E(rewardLevel("void") + 1).pow(2));
+    g = g.mul(supernovaGasMult()); // Update 3: Black Hole remnant, Reverse Shock
     if (ruleActive("void")) g = g.div(ruleVoidDiv());
     out.gasGain = g;
     return out;

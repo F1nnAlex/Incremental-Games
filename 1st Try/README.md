@@ -4,7 +4,7 @@ Start as a 1 picogram speck of dust and evolve into planets, stars and galaxies.
 
 **To play:** double-click `index.html`. No install and no build step.
 
-**Plans:** see [ROADMAP.md](ROADMAP.md) for the updates: Star Map challenges (done), then Supernova, Neutron Capture and Galaxy.
+**Plans:** see [ROADMAP.md](ROADMAP.md) for the updates: Star Map challenges, Supernova and Neutron Capture (done), then Galaxy.
 
 ## Structure
 ```
@@ -28,6 +28,10 @@ js/content/         the game itself
                     Li/Be/B from cosmic rays), Shells, Stellar Wind → Stardust, Generations, Periodic Table sub-tab
   starmap.js        Star Map (from 5 Stellar Winds): 6 challenge regions × 5 tiers, travel / return home,
                     signature rules + a softcap tier ramp, rewards, the map view and the rule banner
+  supernova.js      layer 4 (from Neon): iron core → Supernova → Neutronium, remnant choice (Neutron Star /
+                    Black Hole), Supernova milestones and upgrades
+  kilonova.js       layer 5 (Update 4, Neutron Capture): Free Neutrons and the s-process ladder, Kilonova reset,
+                    seeded r-process drops with rarity/pity/levels and set bonuses, Uranium ending
 js/game.js          startup
 ```
 
@@ -56,7 +60,7 @@ js/game.js          startup
 | Passive gain | `prestige.passive: () => 0.1` (10% of the reset gain per second) | Debris Disk |
 
 ## Balancing
-Pacing was tuned with a simulator that plays greedily: first Evolve ≈ 50 s, Pebble ≈ 8 min, first Collision ≈ 18 min, Protoplanet ≈ 1h40m, Planet ≈ 1h45m, Red Dwarf (first star + first Stellar Wind) ≈ 2h, Yellow Dwarf (Carbon, Oxygen) ≈ 2h40m, Nitrogen ≈ 2h50m, Star Map unlocks (5 winds) ≈ 3h, Blue Giant ≈ 3h35m, 10 completions ≈ 4h, Supergiant ≈ 4h20m, all 30 completions (end of current content) ≈ 6h. Early region tiers take 5–13 min; Black Hole and Supernova Remnant tiers 4–5 take about 20 min, usually after a failed attempt or two. Buildings stop spending their currency at 10 collisions (Accretion), 6 winds (Storm Bands) and 15 winds (Shells, Compression).
+Pacing was tuned with a simulator that plays greedily: first Evolve ≈ 50 s, Pebble ≈ 8 min, first Collision ≈ 18 min, Protoplanet ≈ 1h40m, Planet ≈ 1h45m, Red Dwarf (first star + first Stellar Wind) ≈ 2h, Yellow Dwarf (Carbon, Oxygen) ≈ 2h40m, Nitrogen ≈ 2h50m, Star Map unlocks (5 winds) ≈ 3h, Blue Giant ≈ 3h35m, 10 completions ≈ 4h, Supergiant ≈ 4h20m, all 30 completions (end of Update 2) ≈ 5h45m, first Supernova ≈ 7h, Auto Supernova (8 Supernovae) ≈ 8h45m, Kilonova upgrade (end of Update 3) ≈ 11h, first Kilonova ≈ 12h, Uranium (end of current content) ≈ 19h10m. Early region tiers take 5–13 min; Black Hole and Supernova Remnant tiers 4–5 take about 20 min, usually after a failed attempt or two. Buildings stop spending their currency at 10 collisions (Accretion), 6 winds (Storm Bands) and 15 winds (Shells, Compression).
 
 Star era rules that keep it stable: the mass softcap has a hard second stage (growth turns linear) and "softcap starts later" effects are the main way forward; core temperature only counts mass up to your next form; fusion's temperature bonus is capped at ×100; big star forms also need lifetime Stardust. The most sensitive numbers: Cohesion cost growth (3), Dense Core (×2.2), Super Cohesion start (52.5), Snowball softcap (^0.4), and anything that scales with the number of collisions (it compounds, because more collisions make the next one faster).
 
@@ -68,6 +72,12 @@ From Planet on, your core stops growing at ~10 M⊕ (isolation mass), so you gro
 - **Stellar Wind** resets Accretion, Evolution and Collision, including your collision count, so the first winds are a real restart. Stellar Wind milestones (by number of winds) give things back step by step: starting collisions, kept upgrades, Enriched Winds (from 2 winds, gas gain +20% per wind, up to ×2), Auto Evolve past Planet, a Planet start, auto-buyers.
 
 Gas is the backbone of star-era pacing: about 9 of the 10 minutes of an early generation are spent gathering gas. Any gas boost that grows with Stardust snowballs (in the simulator, gas ×(Stardust+1)^0.3 cut the game from 7h30 to 3h40), so gas boosts should stay small and capped.
+
+## Neutron Capture (layer 5: Kilonova)
+Buying the Kilonova upgrade opens Update 4. **Free Neutrons** flow from your remnant (lifetime Neutronium^0.5, ×(1 + Neutron Star level)) and buy the **s-process ladder** Co → Mo, one element at a time, never reset. A **Kilonova** (4,000 Neutronium, ×1.55 each time) resets the Supernova layer and everything below it and drops 2 + one-per-doubling **heavy elements** in four rarities (Common 60%, Uncommon 28%, Rare 10%, Legendary 2%), with pity at 6 (Rare) and 20 (Legendary). Duplicates level elements up; full rarity sets give bonuses. The random seed is per save, so reloading never rerolls. Thorium is always the first Legendary, and Uranium (the second) ends Update 4. The Periodic Table becomes the full 18-column table. Knobs: `KILONOVA` in `kilonova.js`.
+
+## Supernova (layer 4)
+After 30/30 the Supergiant burns on: Neon → Magnesium (1.2 GK) → Silicon (1.8 GK) → Iron (2.7 GK). These core elements survive Stellar Winds and are capped at your star's mass. With 1.4 M☉ of Iron (the Chandrasekhar limit) you can go **Supernova**: it resets everything below it, including Fusion, and gives Neutronium = (Iron ÷ 1.4 M☉)^0.5 × multipliers. Star Map completions and discoveries stay. After each Supernova you choose a remnant: a **Neutron Star** (more Stardust and Neutronium) or a **Black Hole** (much later mass softcap, more gas, less Neutronium). Supernova milestones give back starting winds, upgrades, Shells and Auto Supernova. Kilonova (3,000 Neutronium) ends Update 3. Tuning knobs: `SUPERNOVA` in `supernova.js` and `ELEM.lateBase` in `fusion.js`.
 
 ## Star Map (challenges)
 From 5 Stellar Winds you can **travel** to one of 6 regions. Travelling releases a Stellar Wind and your next generation is born there, under that region's signature rule. Reach the region's goal to earn a completion, then you return home automatically. **Return home** gives up without a reward.

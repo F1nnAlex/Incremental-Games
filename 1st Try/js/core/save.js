@@ -12,7 +12,9 @@ const MIGRATIONS = {
     const keep = ["H", "He", "C", "N", "O"];
     if (s.fusion) {
       if (Array.isArray(s.fusion.discovered)) s.fusion.discovered = s.fusion.discovered.filter((x) => keep.includes(x));
-      // removed elements and Shells are dropped automatically when the save is merged
+      // drop removed elements and their Shells (some, like Iron, came back later with new rules)
+      if (s.fusion.elements) for (const k in s.fusion.elements) if (!keep.includes(k)) delete s.fusion.elements[k];
+      if (s.fusion.buyables) for (const k in s.fusion.buyables) if (k.startsWith("shell") && !keep.includes(k.slice(5))) delete s.fusion.buyables[k];
     }
   },
   // v3: "Scientific" now means every number in scientific notation; the old "scientific" look is "Mixed"

@@ -115,6 +115,11 @@ function completions(id) {
   return player.starmap.completions[id] || 0;
 }
 
+/** How strong a region's reward is: its completions (×2 with the Pulsar Wind Nebula). */
+function rewardLevel(id) {
+  return completions(id) * (typeof hasUpgrade === "function" && hasUpgrade("supernova", 7) ? 2 : 1);
+}
+
 function totalCompletions() {
   let n = 0;
   for (const id of REGION_IDS) n += completions(id);
@@ -271,8 +276,8 @@ for (const key of ["envelope", "decks", "storms"]) {
   const b = LAYERS.atmosphere.buyables[key];
   const cost = b.cost;
   const bulk = b.bulk;
-  b.cost = (x) => cost(x).div(completions("void") + 1);
-  b.bulk = (money) => bulk(E(money).mul(completions("void") + 1));
+  b.cost = (x) => cost(x).div(rewardLevel("void") + 1);
+  b.bulk = (money) => bulk(E(money).mul(rewardLevel("void") + 1));
 }
 
 // ---------- Map UI ----------
@@ -343,7 +348,8 @@ function updateStarMap(r) {
   setText(r.d.status, !unl ? "Locked: needs " + reg.unlockAt + " total completions" : here === id ? "You are here. Completions: " + c + "/5" : "Completions: " + c + "/5");
   setText(r.d.rule, "Rule" + (c < MAX_REGION_COMPLETIONS ? " (tier " + (c + 1) + ")" : "") + ": " + ruleText(id));
   setText(r.d.goal, "Goal: " + goalText(regionGoal(id)) + (c < MAX_REGION_COMPLETIONS ? " (tier " + (c + 1) + ")" : ""));
-  setText(r.d.reward, "Reward: " + (c > 0 ? reg.rewardText(c) : "nothing yet") + (c < MAX_REGION_COMPLETIONS ? ". Next: " + reg.rewardText(c + 1) : ""));
+  const lv = rewardLevel(id), step = rewardLevel(id) / Math.max(c, 1) || 1;
+  setText(r.d.reward, "Reward: " + (c > 0 ? reg.rewardText(lv) : "nothing yet") + (c < MAX_REGION_COMPLETIONS ? ". Next: " + reg.rewardText(lv + step) : ""));
   setText(r.d.extra, reg.extraText || "");
   setVisible(r.d.extra, !!reg.extraText);
   const canTravel = unl && !here && c < MAX_REGION_COMPLETIONS;
