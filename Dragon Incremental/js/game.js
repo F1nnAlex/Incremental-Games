@@ -1,32 +1,26 @@
 // Entry point: load the save, build the UI, start the loop.
 
-const LAYER_INTRO = {
-  youngling: [
-    "Something stirs",
-    "The egg is close. Reach " + formatProse(HATCH_REQ) + " Embers in one run and it will Hatch into a Youngling. Hatching wipes the Nest but gives Scales, which grow your dragon's body. The Essence you fed most decides what kind of dragon it becomes.",
-  ],
-};
-
 function announceLayer(id) {
-  const intro = LAYER_INTRO[id];
-  if (!intro || simulating || (id === "youngling" && player.youngling.hatched)) return;
+  if (id !== "youngling" || simulating || player.youngling.hatched) return;
   showModal({
-    title: intro[0],
-    text: intro[1],
-    buttons: [{ label: "Show me", action: () => showLayer(id) }, { label: "Keep feeding" }],
+    title: "Something stirs",
+    art: '<img class="modal-portrait egg" src="assets/egg/egg_cracked.png" alt="">',
+    text: "The egg is warm now, and something inside is moving. Gather " + formatProse(HATCH_REQ) + " Food in one run and it will hatch. Hatching starts the forest over, but gives Scales that grow your dragon.",
+    buttons: [{ label: "Show me", action: () => showTab("youngling") }, { label: "Keep feeding" }],
   });
 }
 
 function buildHeader() {
-  const amount = document.getElementById("headerAmount");
+  const food = document.getElementById("headerFood");
   const rate = document.getElementById("headerRate");
   const scales = document.getElementById("headerScales");
+  const scalesBox = document.getElementById("headerScalesBox");
   return () => {
-    setText(amount, format(player.hearth.embers));
-    setText(rate, "+" + format(tmp.hearth.nestRate) + "/s");
+    setText(food, formatFood(player.forage.food));
+    setText(rate, "+" + format(tmp.forage.rate) + " / s");
     const y = player.youngling;
-    setVisible(scales, y.hatched || y.scales.gt(0));
-    setText(scales, amountText("youngling", y.scales));
+    setVisible(scalesBox, y.hatched);
+    setText(scales, formatWhole(y.scales));
   };
 }
 
@@ -43,9 +37,8 @@ function afterLoad() {
 
 function updateUI() {
   updateHeader();
-  document.body.classList.toggle("no-anim", !player.options.animations);
   updateTabs();
-  updateStageHUD();
+  updateStage();
 }
 
 function init() {
@@ -62,7 +55,8 @@ function init() {
   if (!hadSave) {
     showModal({
       title: "Wyrmheart",
-      text: "You found an egg in the ashes of a dead volcano. It is cold, but something inside is still alive. Feed it Embers. Later you will feel its heartbeat. Feed on the beat.",
+      art: '<img class="modal-portrait egg" src="assets/egg/egg.png" alt="">',
+      text: "Deep in an old forest you find an egg in an abandoned nest. It is cold, but something inside is still alive. Feed it.",
       buttons: [{ label: "Feed it" }],
     });
   }

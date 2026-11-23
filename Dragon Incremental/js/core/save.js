@@ -1,6 +1,6 @@
 // Saving, loading, export/import and save-format migrations.
 
-const SAVE_KEY = "wyrmheart_save_v1";
+const SAVE_KEY = "wyrmheart_save_v2"; // v2: the revamp (Food, growth stages) started fresh
 const AUTOSAVE_SECONDS = 30;
 
 // Migrations: MIGRATIONS[n] upgrades a raw (parsed) save from version n-1 to n.

@@ -1,20 +1,13 @@
 // Keyboard shortcuts.
 
 const HOTKEYS = [
-  { key: " ", label: "Space / F", desc: "Feed (time it with the heartbeat)", fn: () => stageFeed(null) },
-  { key: "f", label: "", desc: "", fn: () => stageFeed(null), hidden: true },
-  { key: "b", label: "B", desc: "Kindle Breath", fn: () => useBreath() },
+  { key: " ", label: "Space", desc: "Feed", fn: () => stageFeed() },
+  { key: "f", label: "F", desc: "Feed", fn: () => stageFeed(), hidden: true },
   { key: "h", label: "H", desc: "Hatch / Molt", fn: () => tmp.youngling.unlocked && requestPrestige("youngling") },
-  { key: "m", label: "M", desc: "Buy max of every Nest building", fn: () => GEN_KEYS.forEach((k) => buyMaxBuyable("hearth", k)) },
-  { key: "d", label: "D", desc: "Next diet", fn: () => cycleDiet() },
-  { key: "s", ctrl: true, label: "Ctrl+S", desc: "Save the game", fn: () => saveGame() },
+  { key: "m", label: "M", desc: "Buy as many food sources as you can", fn: () => SOURCE_KEYS.forEach((k) => buyN("forage", k, 10000)) },
+  { key: "s", ctrl: true, label: "Ctrl+S", desc: "Save", fn: () => saveGame() },
   { key: "1-6", label: "1–6", desc: "Switch tabs", fn: null },
 ];
-
-function cycleDiet() {
-  const open = FOOD_KEYS.filter((k) => FOODS[k].unlocked());
-  setDiet(open[(open.indexOf(player.hearth.diet) + 1) % open.length]);
-}
 
 function setupHotkeys() {
   document.addEventListener("keydown", (e) => {

@@ -1,61 +1,59 @@
 # Wyrmheart
 
-An incremental game about raising a dragon. You start with a cold egg in a dead volcano, feed it,
-hatch it, and grow it molt by molt into something enormous.
+An incremental game about raising a dragon. You find a cold egg in a forest nest and feed it until it
+hatches. Then you grow the dragon, Molt by Molt, from a Hatchling into an Adult that rules a volcano.
 
 Open `index.html` in a browser. There is no build step. The save lives in `localStorage` under
-`wyrmheart_save_v1`.
+`wyrmheart_save_v2`.
 
 ## Layers
 
-### 1. The Egg / Nest: Embers
-- **Feed** by hand (button, click the egg, or Space / F).
-- **Heartbeat** (after *Shell Whispers*): the egg pulses every 1.6 s. A feed on the beat is a
-  *Resonant Feed*: ×3 and +1 Resonance (+10% to everything per stack, fades if you stop).
-  A feed just *before* the beat makes the egg flinch and wastes that beat, so mashing is
-  worse than rhythm. Options has a "Relaxed heartbeat" toggle that widens the window.
-- **Diet**: Ember Coal, Frost Shards and Storm Glass. Each feed adds Essence of the food you
-  have selected:
-  - Ember makes feeds stronger.
-  - Frost boosts the nest, doubled while you rest.
-  - Storm gives feeds a chance to Spark (×10 plus a jolt of nest production).
+### 1. Foraging: Food
+- **Feed** by hand: click the Feed button or the creature, or press Space.
+- **Food sources** produce Food every second: Berry Bramble, Mushroom Ring, Trout Stream and
+  Deer Trail. Every 25 of one doubles it.
+- **Upgrades** are permanent multipliers bought with Food. There are no timed boosts.
+- **Incubation:** the egg starts small and grows as it gets closer to hatching. Its shell cracks
+  at 50%, and at 90% it is breaking open. The Hatch needs 2,000,000 Food in one run.
 
-  The egg's veins show the mix.
-- **Nest**: Kindling, Coal Bed, Magma Vent and Sunstone Shard. Every 25 of a building doubles it.
-- **Incubation**: the egg cracks at 25/50/75% and hatches at 1e6 Embers in one run.
-
-### 2. The Youngling: Scales
-- **Hatch** (the first reset) and **Molt** (every later one) wipe the Nest and give Scales.
-  Each Molt needs 6× more Embers than the last.
-- **Body parts** bought with Scales visibly change the dragon:
+### 2. The Dragon: Scales
+- **Hatch** (the first reset) and **Molt** (every later one) restart Foraging and give Scales.
+  Each Molt needs more Food than the last.
+- **Body parts** are bought with Scales:
 
   | Part | Effect |
   |---|---|
-  | Claws | Feeds ×2 per level |
+  | Claws | Stronger hand feeds |
   | Wings | Automatic feeds |
-  | Horns | Wider beat window, more Resonance |
-  | Tail | Cheaper nest |
+  | Horns | ×Food |
+  | Tail | Cheaper food sources |
   | Hide | More Scales |
-  | Fire Gland | Kindle Breath (B): nest ×(3 + level) for 10 s |
+  | Fire Gland | ×Food, from the Youngling stage |
 
-- **Size**: total Scales ever earned give ×√(1 + total) to everything.
-- **Aspect**: the Essence you fed most in a run decides the next form (Emberkin, Rimeborn or
-  Stormcaller), with its own colours and perk.
+- **Size:** total Scales give ×√(1 + total) to all Food.
+- **Growth stages** come with the number of Molts. Each stage has new art, a bigger dragon, a new
+  place to live, and a bonus to all Food:
+
+  | Stage | Place |
+  |---|---|
+  | Hatchling | Forest Clearing |
+  | Youngling | River Valley |
+  | Juvenile | Mountain Cliffs |
+  | Adult | Volcanic Peak |
+
 - **Molt milestones** add autobuyers and let you keep upgrades.
 
-## Code layout
-- `js/core/`: engine copied from Speck (`1st Try/`). It covers big numbers, formatting, layers
-  and prestige, automation, save and load, and the loop. It adds a `beforeReset` prestige hook,
-  and `tabs.js`, `player.js`, `hotkeys.js` and `loop.js` are specific to this game.
-- `js/content/`: game rules (`hearth.js`, `heartbeat.js`, `diet.js`, `youngling.js`,
-  `achievements.js`).
-- `js/art/`: all graphics, drawn in code.
-  - `egg.js`: the egg SVG.
-  - `youngling.js`: the parametric dragon rig. Each body part's shape depends on its level.
-  - `fx.js`: the canvas particles.
-  - `stage.js`: the scene, feeding, cinematics and HUD.
-- `assets/bg/`: painted backdrops made with Higgsfield (`nest.jpg`, `aerie.jpg`, plus the
-  `drake.jpg` teaser). The dragon is never in these images. It is drawn on top in SVG, so it
-  can change shape. If an image is missing, CSS gradients take its place.
+Embers are reserved for a later layer (making the dragon stronger).
 
-See `ROADMAP.md` for what comes next.
+## Code layout
+- `js/core/`: engine copied from Speck (`1st Try/`). It covers big numbers, formatting, layers and
+  prestige, automation, save and load, and the loop. It adds a `beforeReset` prestige hook, and
+  `tabs.js`, `player.js`, `hotkeys.js` and `loop.js` are specific to this game.
+- `js/content/`: game rules (`forage.js`, `youngling.js`, `achievements.js`).
+- `js/art/stage.js`: the scene. It places the creature on the ground line of each backdrop and
+  sizes it by growth stage.
+- `assets/`: realistic art made with Higgsfield.
+  - `egg/`: the egg in 3 states.
+  - `dragon/`: the 4 growth stages, cut out on transparent backgrounds.
+  - `bg/`: the 4 locations, plus the `drake.jpg` teaser.
+  - `icons/`: the item icons.

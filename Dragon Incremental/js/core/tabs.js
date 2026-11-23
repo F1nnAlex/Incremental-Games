@@ -1,15 +1,15 @@
-// Tabs in the side panel: Nest, Upgrades, Youngling, Feats, Stats, Options.
+// Tabs in the side panel: Foraging, Upgrades, Dragon, Feats, Stats, Options.
 
 const TABS = []; // { id, name, unlocked(), button, dot, panel, update() }
 
 function tabDefs() {
   return [
-    { id: "nest", name: "Nest", build: (p) => buildLayerContent(LAYERS.hearth, p) },
-    { id: "upgrades", name: "Upgrades", attention: () => Object.keys(LAYERS.hearth.upgrades).some((k) => tmp.hearth.upgrades[k].unlocked && canBuyUpgrade("hearth", k)), build: (p) => buildUpgradesTab(p) },
-    { id: "youngling", name: "Youngling", unlocked: () => tmp.youngling.unlocked, attention: () => Object.keys(LAYERS.youngling.buyables).some((k) => canBuyBuyable("youngling", k)), build: (p) => buildLayerContent(LAYERS.youngling, p) },
-    { id: "feats", name: "Feats", build: (p) => buildFeatsTab(p) },
-    { id: "stats", name: "Stats", build: (p) => buildStatsTab(p) },
-    { id: "options", name: "Options", build: (p) => buildOptionsTab(p) },
+    { id: "forage", name: "Foraging", build: buildForageTab },
+    { id: "upgrades", name: "Upgrades", attention: () => anyUpgradeAffordable(), build: buildUpgradeTab },
+    { id: "youngling", name: "Dragon", unlocked: () => tmp.youngling.unlocked, attention: () => player.youngling.hatched && Object.keys(LAYERS.youngling.buyables).some((k) => tmp.youngling.buyables[k].unlocked && canBuyBuyable("youngling", k)), build: buildDragonTab },
+    { id: "feats", name: "Feats", build: buildFeatsTab },
+    { id: "stats", name: "Stats", build: buildStatsTab },
+    { id: "options", name: "Options", build: buildOptionsTab },
   ];
 }
 
@@ -48,7 +48,7 @@ function showTab(id) {
 
 /** Open the tab that shows a layer (used by layer unlock popups). */
 function showLayer(layerId) {
-  showTab(layerId === "hearth" ? "nest" : layerId);
+  showTab(layerId);
 }
 
 function updateTabs() {
@@ -66,33 +66,329 @@ function visibleTabs() {
   return TABS.filter(tabUnlocked);
 }
 
-// ---------- Built-in tabs ----------
+// ---------- Buy amount (×1 / ×10 / Max) ----------
+
+const BUY_AMOUNTS = [["1", "×1"], ["10", "×10"], ["max", "Max"]];
+
+function buyCount() {
+  return player.buyAmount === "max" ? 10000 : Number(player.buyAmount) || 1;
+}
+
+function buildAmountPicker() {
+  const btns = BUY_AMOUNTS.map(([v, label]) => {
+    const b = h("button", { class: "seg-btn", onclick: () => (player.buyAmount = v) }, label);
+    return [v, b];
+  });
+  const el = h("div", { class: "seg", role: "group", "aria-label": "Buy amount" }, btns.map((x) => x[1]));
+  return { el, update: () => btns.forEach(([v, b]) => setClass(b, "on", player.buyAmount === v)) };
+}
+
+// ---------- Shared row list for buyables (food sources, body parts) ----------
+
+/**
+ * One row per buyable: icon, name + level, description, effect line, buy button.
+ * info(key) returns the effect line text.
+ */
+function buildRows(layer, keys, container, info) {
+  const def = LAYERS[layer];
+  const rows = {};
+  const list = h("div", { class: "rows" });
+  for (const key of keys) {
+    const b = def.buyables[key];
+    const r = {
+      level: h("span", { class: "row-level" }),
+      effect: h("div", { class: "row-effect" }),
+      cost: h("span", { class: "buy-cost" }),
+      what: h("span", { class: "buy-what" }),
+    };
+    r.buy = h("button", { class: "buy-btn", onclick: () => buyN(layer, key, buyCount()) }, r.what, r.cost);
+    r.autoKey = Object.keys(def.automation).find((k) => def.automation[k].buyable === key);
+    if (r.autoKey) r.auto = h("button", { class: "auto-chip", onclick: () => toggleAuto(layer, r.autoKey) });
+    r.row = h(
+      "div",
+      { class: "row" },
+      h("img", { class: "row-icon", src: b.icon, alt: "", loading: "lazy" }),
+      h("div", { class: "row-main" }, h("div", { class: "row-title" }, b.title, r.level), h("div", { class: "row-desc" }, b.desc), r.effect),
+      h("div", { class: "row-side" }, r.buy, r.auto || null)
+    );
+    rows[key] = r;
+    list.append(r.row);
+  }
+  container.append(list);
+
+  return () => {
+    const n = buyCount();
+    for (const key of keys) {
+      const b = def.buyables[key];
+      const r = rows[key];
+      const unl = tmp[layer].buyables[key].unlocked;
+      setVisible(r.row, unl);
+      if (!unl) continue;
+      const lvl = player[layer].buyables[key];
+      setText(r.level, formatWhole(lvl) + (b.max !== undefined ? " / " + b.max : ""));
+      setText(r.effect, info(key));
+      const maxed = b.max !== undefined && lvl.gte(b.max);
+      const cur = player[layer][layer === "forage" ? "food" : "scales"];
+      let cost;
+      let label;
+      if (maxed) {
+        label = "Maxed";
+        cost = null;
+      } else if (player.buyAmount === "max") {
+        // how many fit, and what they cost
+        let k = 0;
+        let sum = E(0);
+        while (k < 200) {
+          const c = b.cost(lvl.add(k));
+          if (sum.add(c).gt(cur) || (b.max !== undefined && lvl.add(k).gte(b.max))) break;
+          sum = sum.add(c);
+          k++;
+        }
+        label = k > 0 ? "Buy " + k : "Buy";
+        cost = k > 0 ? sum : b.cost(lvl);
+      } else {
+        cost = costOfNext(layer, key, n);
+        label = n > 1 ? "Buy 10" : "Buy";
+      }
+      setText(r.what, label);
+      setText(r.cost, cost ? amountText(layer, cost) : "");
+      setClass(r.buy, "can", !maxed && canBuyBuyable(layer, key) && (player.buyAmount !== "10" || cur.gte(cost)));
+      setClass(r.buy, "maxed", maxed);
+      if (r.auto) {
+        const au = isAutoUnlocked(layer, r.autoKey);
+        setVisible(r.auto, au);
+        if (au) {
+          const on = isAutoOn(layer, r.autoKey);
+          setText(r.auto, "Auto " + (on ? "on" : "off"));
+          setClass(r.auto, "on", on);
+        }
+      }
+    }
+  };
+}
+
+// ---------- Foraging ----------
+
+const SOURCE_BASE = { berries: 0.4, mushrooms: 3, trout: 28, deer: 260 };
+
+function buildForageTab(panel) {
+  const amount = buildAmountPicker();
+  const total = h("div", { class: "panel-sub" });
+  panel.append(h("div", { class: "panel-head" }, h("div", {}, h("h2", {}, "Food sources"), total), amount.el));
+  const update = buildRows("forage", SOURCE_KEYS, panel, (key) => {
+    const owned = player.forage.buyables[key];
+    if (owned.eq(0)) return "Each gives " + format(E(SOURCE_BASE[key]).mul(sourceMult())) + " Food/s";
+    const prod = buyableEffect("forage", key).mul(sourceMult());
+    const share = tmp.forage.rate.gt(0) ? prod.div(tmp.forage.rate).mul(100).toNumber() : 0;
+    const next25 = E(25).sub(owned.mod(25));
+    return "+" + format(prod) + " Food/s · " + share.toFixed(0) + "% · ×2 in " + formatWhole(next25);
+  });
+  const hint = h("div", { class: "hint" });
+  panel.append(hint);
+
+  return () => {
+    amount.update();
+    setText(total, "Producing " + format(tmp.forage.rate) + " Food/s · feeding gives " + format(tmp.forage.feedPower));
+    update();
+    // what unlocks next
+    const next = SOURCE_KEYS.map((k) => [k, LAYERS.forage.buyables[k]]).find(([k]) => !tmp.forage.buyables[k].unlocked);
+    const req = { mushrooms: 80, trout: 2500, deer: 80000 };
+    setVisible(hint, !!next);
+    if (next) setText(hint, "Next food source after " + formatWhole(req[next[0]]) + " Food gathered this run.");
+  };
+}
+
+// ---------- Upgrades ----------
+
+function anyUpgradeAffordable() {
+  return Object.keys(LAYERS.forage.upgrades).some((k) => tmp.forage.upgrades[k].unlocked && canBuyUpgrade("forage", k));
+}
+
+function buildUpgradeTab(panel) {
+  const def = LAYERS.forage;
+  const grid = h("div", { class: "cards" });
+  const sub = h("div", { class: "panel-sub" });
+  panel.append(h("div", { class: "panel-head" }, h("div", {}, h("h2", {}, "Upgrades"), sub)), grid);
+  const cards = {};
+  for (const key in def.upgrades) {
+    const u = def.upgrades[key];
+    const c = { effect: h("div", { class: "card-effect" }), cost: h("div", { class: "card-cost" }) };
+    c.el = h(
+      "button",
+      { class: "up-card", onclick: () => buyUpgrade("forage", key) },
+      h("img", { class: "up-icon", src: u.icon, alt: "", loading: "lazy" }),
+      h("div", { class: "up-body" }, h("div", { class: "up-title" }, u.title), h("div", { class: "up-desc" }, u.desc), c.effect, c.cost)
+    );
+    cards[key] = c;
+    grid.append(c.el);
+  }
+  const locked = h("div", { class: "hint" });
+  panel.append(locked);
+  return () => {
+    let hidden = 0;
+    let owned = 0;
+    for (const key in cards) {
+      const u = def.upgrades[key];
+      const c = cards[key];
+      const unl = tmp.forage.upgrades[key].unlocked;
+      const bought = hasUpgrade("forage", key);
+      if (bought) owned++;
+      setVisible(c.el, unl);
+      if (!unl) {
+        hidden++;
+        continue;
+      }
+      setText(c.effect, u.effectDisplay ? u.effectDisplay(tmp.forage.upgrades[key].effect) : "");
+      setText(c.cost, bought ? "Owned" : amountText("forage", u.cost));
+      setClass(c.el, "bought", bought);
+      setClass(c.el, "can", !bought && canBuyUpgrade("forage", key));
+    }
+    setText(sub, owned + " owned");
+    setVisible(locked, hidden > 0);
+    setText(locked, hidden + " more upgrade" + (hidden === 1 ? "" : "s") + " to discover.");
+  };
+}
+
+// ---------- Dragon (growth, Molt, body parts, milestones) ----------
+
+function buildDragonTab(panel) {
+  const def = LAYERS.youngling;
+
+  // Growth track
+  const track = h("div", { class: "track" });
+  const nodes = STAGES.map((s, i) => {
+    const n = {
+      el: h(
+        "div",
+        { class: "node" },
+        h("div", { class: "node-pic" }, h("img", { src: s.img, alt: "", loading: "lazy" })),
+        h("div", { class: "node-name" }, s.name),
+        h("div", { class: "node-req" }, i === 0 ? "Start" : i === 1 ? "Hatch" : "Molt " + (s.at - 1))
+      ),
+    };
+    track.append(n.el);
+    return n;
+  });
+  const stageInfo = h("div", { class: "stage-info" });
+
+  // Molt box
+  const moltBtn = h("button", { class: "molt-btn", onclick: () => requestPrestige("youngling") });
+  const moltInfo = h("div", { class: "molt-info" });
+  const moltFill = h("div", { class: "bar-fill" });
+
+  // Summary
+  const sum = {
+    scales: h("b"),
+    size: h("b"),
+    stage: h("b"),
+  };
+
+  const amount = buildAmountPicker();
+  panel.append(
+    h("h2", {}, "Growth"),
+    track,
+    stageInfo,
+    h("div", { class: "molt-box" }, moltBtn, h("div", { class: "bar" }, moltFill), moltInfo),
+    h(
+      "div",
+      { class: "summary" },
+      h("div", {}, h("span", {}, "Scales"), sum.scales),
+      h("div", {}, h("span", {}, "Size bonus"), sum.size),
+      h("div", {}, h("span", {}, "Stage bonus"), sum.stage)
+    ),
+    h("div", { class: "panel-head" }, h("h2", {}, "Body"), amount.el)
+  );
+  const bodyUpdate = buildRows("youngling", Object.keys(def.buyables), panel, (key) => {
+    const b = def.buyables[key];
+    return b.effectDisplay(buyableEffect("youngling", key));
+  });
+  const glandHint = h("div", { class: "hint" }, "The Fire Gland grows once your dragon is a Youngling.");
+  panel.append(glandHint);
+
+  panel.append(h("h2", {}, "Milestones"));
+  const ms = h("div", { class: "milestones" });
+  const mRows = Object.keys(def.milestones).map((key) => {
+    const m = def.milestones[key];
+    const row = h("div", { class: "milestone" }, h("span", { class: "m-req" }, m.reqText), h("span", { class: "m-desc" }, m.desc));
+    ms.append(row);
+    return [key, row];
+  });
+  panel.append(ms);
+
+  return () => {
+    const y = player.youngling;
+    const si = stageIndex();
+    nodes.forEach((n, i) => {
+      setClass(n.el, "done", i < si);
+      setClass(n.el, "current", i === si);
+      setClass(n.el, "locked", i > si);
+    });
+    const next = nextStage();
+    setText(stageInfo, currentStage().desc + (next ? " Next: " + next.name + " at " + next.place + "." : ""));
+
+    const t = tmp.youngling;
+    setText(moltBtn, t.canPrestige ? (y.hatched ? "Molt" : "Hatch") + " for +" + formatWhole(t.prestigeGain) + " Scales" : y.hatched ? "Molt" : "Hatch");
+    setClass(moltBtn, "can", !!t.canPrestige);
+    moltFill.style.width = (incubation() * 100).toFixed(1) + "%";
+    setText(moltInfo, LAYERS.youngling.prestige.requirementText());
+
+    setText(sum.scales, formatWhole(y.scales) + " (" + formatWhole(y.total) + " earned)");
+    setText(sum.size, formatMult(sizeMult()));
+    setText(sum.stage, formatMult(stageMult(), 0));
+    amount.update();
+    bodyUpdate();
+    setVisible(glandHint, y.hatched && stageIndex() < 2);
+    for (const [key, row] of mRows) setClass(row, "reached", !!tmp.youngling.milestones[key]);
+  };
+}
+
+// ---------- Feats ----------
+
+function buildFeatsTab(panel) {
+  const count = h("div", { class: "panel-sub" });
+  const grid = h("div", { class: "feats" });
+  const tiles = ACHIEVEMENTS.map((a) => {
+    const tile = h("div", { class: "feat" }, h("div", { class: "feat-mark" }), h("div", {}, h("div", { class: "feat-name" }, a.name), h("div", { class: "feat-desc" }, a.desc)));
+    grid.append(tile);
+    return [a, tile];
+  });
+  panel.append(h("div", { class: "panel-head" }, h("div", {}, h("h2", {}, "Feats"), count)), grid);
+  return () => {
+    setText(count, player.achievements.length + " of " + ACHIEVEMENTS.length + " · all Food " + formatMult(achievementMult()));
+    for (const [a, tile] of tiles) setClass(tile, "done", hasAchievement(a.id));
+  };
+}
+
+// ---------- Stats ----------
 
 function buildStatsTab(panel) {
-  const list = h("ul", { class: "stats-list" });
+  const list = h("div", { class: "stats" });
   panel.append(h("h2", {}, "Stats"), list);
   const rows = {};
-  const row = (key) => {
+  const row = (key, label) => {
     if (!rows[key]) {
-      rows[key] = h("li");
-      list.append(rows[key]);
+      rows[key] = h("b");
+      list.append(h("div", { class: "stat" }, h("span", {}, label), rows[key]));
     }
     return rows[key];
   };
   return () => {
     const s = player.stats;
-    setText(row("time"), "Time played: " + formatTime(s.timePlayed));
-    setText(row("embers"), "Embers this run: " + format(player.hearth.total));
-    setText(row("feed"), "Feed power: " + format(tmp.hearth.feedPower) + " · Nest: " + format(tmp.hearth.nestRate) + "/s");
-    setText(row("feeds"), "Hand feeds: " + formatWhole(s.feeds) + " · Resonant: " + formatWhole(s.resonant) + " · Sparks: " + formatWhole(s.sparks));
-    setText(row("auto"), "Wing feeds: " + formatWhole(s.autoFeeds) + " · Breaths: " + formatWhole(s.breaths));
-    setText(row("res"), "Best Resonance: " + s.bestResonance);
-    setText(row("ess"), "Essence this run: " + FOOD_KEYS.map((k) => FOODS[k].short + " " + formatWhole(essence(k))).join(" · "));
-    setText(row("scales"), "Scales earned: " + formatWhole(player.youngling.total) + " · Molts: " + molts());
+    setText(row("time", "Time played"), formatTime(s.timePlayed));
+    setText(row("run", "Food this run"), format(player.forage.total));
+    setText(row("rate", "Food per second"), format(tmp.forage.rate));
+    setText(row("feed", "Food per feed"), format(tmp.forage.feedPower));
+    setText(row("feeds", "Hand feeds"), formatWhole(s.feeds));
+    setText(row("auto", "Wing feeds"), formatWhole(s.autoFeeds));
+    setText(row("scales", "Scales earned"), formatWhole(player.youngling.total));
+    setText(row("molts", "Molts"), formatWhole(molts()));
+    setText(row("length", "Length"), dragonLength().toFixed(1) + " m");
     const first = s.first.youngling;
-    setText(row("hatch"), first ? "Hatched after " + formatTime(first) + (s.fastest.youngling ? " · fastest molt " + formatTime(s.fastest.youngling) : "") : "Not hatched yet");
+    setText(row("hatch", "Hatched after"), first ? formatTime(first) : "Not yet");
   };
 }
+
+// ---------- Options ----------
 
 function buildOptionsTab(panel) {
   const toggles = [];
@@ -120,22 +416,19 @@ function buildOptionsTab(panel) {
       toggle("autosave", "Autosave"),
       toggle("offlineProgress", "Offline progress"),
       toggle("confirmPrestige", "Confirm Molts"),
-      toggle("animations", "Animations"),
-      toggle("floaters", "Floating numbers"),
-      toggle("relaxedBeat", "Relaxed heartbeat"),
+      toggle("floaters", "Feed numbers"),
       notationBtn,
       h("button", { class: "danger", onclick: hardReset }, "Hard reset")
     ),
-    h("p", { class: "muted" }, "Relaxed heartbeat widens the beat window by 70%, for anyone who finds the timing hard."),
-    h("h3", {}, "Hotkeys"),
-    h("ul", { class: "hotkey-list" }, HOTKEYS.filter((k) => !k.hidden).map((k) => h("li", {}, h("kbd", {}, k.label), " " + k.desc)))
+    h("h2", {}, "Hotkeys"),
+    h("div", { class: "hotkeys" }, HOTKEYS.filter((k) => !k.hidden).map((k) => h("div", {}, h("kbd", {}, k.label), h("span", {}, k.desc))))
   );
 
   return () => {
     for (const [btn, key, label] of toggles) {
-      setText(btn, label + ": " + (player.options[key] ? "ON" : "OFF"));
+      setText(btn, label + ": " + (player.options[key] ? "On" : "Off"));
       setClass(btn, "on", !!player.options[key]);
     }
-    setText(notationBtn, "Notation: " + NOTATIONS[player.options.notation]);
+    setText(notationBtn, "Numbers: " + NOTATIONS[player.options.notation]);
   };
 }

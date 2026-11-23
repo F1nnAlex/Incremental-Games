@@ -337,12 +337,16 @@ function requestPrestige(id) {
   if (!tmp[id].canPrestige) return;
   // Rank-ups never ask for confirmation (they happen constantly)
   if (!player.options.confirmPrestige || def.prestige.type === "rank") return doPrestige(id);
+  const p = def.prestige;
+  // A layer can word its own confirmation: confirm() → { title, text, button }
+  const c = p.confirm ? p.confirm() : null;
   showModal({
-    title: def.name + " reset",
-    text:
-      "Reset for +" + format(tmp[id].prestigeGain, 0) + " " + (def.currencyName || def.currency) +
-      "? This resets: " + (def.prestige.resets || []).map((l) => LAYERS[l].name).join(", ") + ".",
-    buttons: [{ label: "Reset", action: () => doPrestige(id) }, { label: "Cancel" }],
+    title: c ? c.title : def.name + " reset",
+    text: c
+      ? c.text
+      : "Reset for +" + format(tmp[id].prestigeGain, 0) + " " + (def.currencyName || def.currency) +
+        "? This resets: " + (p.resets || []).map((l) => LAYERS[l].name).join(", ") + ".",
+    buttons: [{ label: c ? c.button : "Reset", action: () => doPrestige(id) }, { label: "Cancel" }],
   });
 }
 

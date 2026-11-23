@@ -1,21 +1,17 @@
 # Roadmap
 
-Built so far: Layer 1 (Egg / Nest) and Layer 2 (Youngling).
+Built so far: Layer 1 (Foraging: the egg in the forest) and Layer 2 (the Dragon: Hatch, Molts,
+and growth from Hatchling to Adult across four places).
 
-## Next forms (ideas, not built)
-1. **Drake**: leaves the nest. Hunts (timed expeditions) bring back prey and the first Hoard.
-   Body parts become *mutations* with branching choices, for example horn crown versus ram
-   horns.
-2. **Wyvern**: flight. A sky layer with thermals, plus wind and weather that change
-   production.
-3. **Elder Wyrm**: the Hoard becomes a currency that compounds. Rivals appear (challenge runs).
-4. **Ancient**: shapes the land. Volcano, glacier and storm biomes tie back to the three
-   Aspects.
-5. **Primordial / Star-Eater**: the endgame.
+## Ideas (not built)
+- **Embers (Layer 3):** an adult dragon starts gathering Embers to grow stronger, not bigger.
+  Possibly fire-based upgrades and a hoard.
+- **New places beyond the Volcanic Peak:** the high skies, a dragon graveyard, a hoard cavern.
+- **Elder / Ancient forms:** made the same way as the current stages. Each is a realistic
+  Higgsfield still using the previous stage as a reference image, so it stays the same dragon.
 
-## Art plan
-- Each form gets its own parametric SVG rig, like `js/art/youngling.js`, so upgrades keep
-  changing the silhouette.
-- Painted backdrops per form come from Higgsfield, without the dragon in them: the nest
-  cave → the aerie → hunting grounds → the sky → the hoard cavern.
-- `assets/bg/drake.jpg` is the teaser for the Drake.
+## Art notes
+- Dragon and egg art is generated on a plain grey background, cut out with Higgsfield background
+  removal, then cropped and resized (see `README.md`).
+- Backdrops leave the centre empty, and `LOCATIONS` in `js/art/stage.js` records each one's
+  ground line.

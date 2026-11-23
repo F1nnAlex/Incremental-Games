@@ -4,24 +4,30 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Wyrmheart</title>
-  <meta name="description" content="An incremental game: feed an egg, hatch a dragon, grow it into something enormous.">
+  <meta name="description" content="An incremental game: find an egg in the forest, feed it, and raise a dragon that grows and travels further with every Molt.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">WYRM<span>HEART</span></div>
-    <div class="header-res">
-      <div class="ember-count"><span class="ember-icon" aria-hidden="true"></span><span id="headerAmount">0</span><span class="unit">Embers</span></div>
-      <div id="headerRate" class="header-rate"></div>
+    <div class="brand">Wyrmheart</div>
+    <div class="top-stats">
+      <div class="top-stat">
+        <span class="top-label">Food</span>
+        <span id="headerFood" class="top-value">0</span>
+        <span id="headerRate" class="top-rate"></span>
+      </div>
+      <div id="headerScalesBox" class="top-stat" hidden>
+        <span class="top-label">Scales</span>
+        <span id="headerScales" class="top-value gold">0</span>
+      </div>
     </div>
-    <div id="headerScales" class="scale-chip" hidden></div>
   </header>
 
   <main class="layout">
-    <section id="stage" class="stage is-egg" aria-label="Your dragon"></section>
+    <section id="stage" class="stage" aria-label="Your dragon"></section>
     <section class="panel">
       <nav id="tabBar" class="tab-bar" role="tablist"></nav>
       <div id="tabContainer" class="tab-container"></div>
@@ -48,17 +54,11 @@
   <script src="js/core/loop.js"></script>
 
   <!-- Content, in layer order -->
-  <script src="js/content/heartbeat.js"></script>
-  <script src="js/content/diet.js"></script>
-  <script src="js/content/hearth.js"></script>
+  <script src="js/content/forage.js"></script>
   <script src="js/content/youngling.js"></script>
   <script src="js/content/achievements.js"></script>
 
-  <!-- Art -->
-  <script src="js/art/palette.js"></script>
-  <script src="js/art/egg.js"></script>
-  <script src="js/art/youngling.js"></script>
-  <script src="js/art/fx.js"></script>
+  <!-- Stage -->
   <script src="js/art/stage.js"></script>
 
   <script src="js/game.js"></script>
