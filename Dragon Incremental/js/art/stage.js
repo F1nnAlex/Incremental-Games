@@ -2,9 +2,14 @@
 // hatch controls. No animation beyond a crossfade when the picture changes and a small "+N"
 // when you feed.
 
-// Where the ground is in each backdrop (fraction of the image height / width), so the creature stands on it
+// Where the ground is in each backdrop (fraction of the image height / width), so the creature stands on it.
+// rim: the front edge of the forest nest in image pixels (1920×1072); that piece of the picture is
+// drawn again over the creature, so the egg sits inside the nest instead of in front of it.
 const LOCATIONS = {
-  forest: { img: "assets/bg/forest.jpg", ground: 0.83, x: 0.47 },
+  forest: {
+    img: "assets/bg/forest.jpg", ground: 872 / 1072, x: 965 / 1920,
+    rim: [[786, 852], [830, 840], [880, 843], [930, 848], [980, 848], [1030, 843], [1080, 837], [1122, 846], [1142, 880], [1104, 926], [950, 938], [820, 928], [776, 892]],
+  },
   valley: { img: "assets/bg/valley.jpg", ground: 0.86, x: 0.48 },
   cliffs: { img: "assets/bg/cliffs.jpg", ground: 0.86, x: 0.5 },
   peak: { img: "assets/bg/peak.jpg", ground: 0.7, x: 0.5 },
@@ -40,7 +45,8 @@ function buildStage(root) {
   hud.floaters = h("div", { class: "floaters" });
   const controls = h("div", { class: "stage-controls" }, hud.feed, hud.prestige);
 
-  root.append(hud.bgA, hud.bgB, h("div", { class: "vignette" }), hud.creature, hud.floaters, top, controls);
+  hud.rim = h("div", { class: "bg-rim" });
+  root.append(hud.bgA, hud.bgB, hud.creature, hud.rim, h("div", { class: "vignette" }), hud.floaters, top, controls);
   STAGE.bgKey = "";
   STAGE.imgKey = "";
 }
@@ -89,13 +95,29 @@ function placeCreature() {
   const hgt = root.clientHeight;
   const imgH = Math.max(w / BG_ASPECT, hgt);
   const imgW = imgH * BG_ASPECT;
-  // keep the feet above the feed button and the head below the title
-  const groundY = Math.min((hgt - imgH) / 2 + loc.ground * imgH, hgt - 112);
-  const x = (w - imgW) / 2 + loc.x * imgW;
+  const ox = (w - imgW) / 2;
+  const oy = (hgt - imgH) / 2;
+  // In the nest the creature must sit exactly on the picture; elsewhere keep the feet above the
+  // feed button and the head below the title
+  let groundY = oy + loc.ground * imgH;
+  if (!loc.rim) groundY = Math.min(groundY, hgt - 112);
+  const x = ox + loc.x * imgW;
   const box = STAGE.hud.creature;
   box.style.height = Math.round(Math.min(hgt * pic.height, groundY - 60)) + "px";
   box.style.bottom = Math.round(hgt - groundY) + "px";
-  box.style.left = Math.round(Math.min(w * 0.8, Math.max(w * 0.2, x))) + "px";
+  box.style.left = Math.round(loc.rim ? x : Math.min(w * 0.8, Math.max(w * 0.2, x))) + "px";
+  setClass(box, "nested", !!loc.rim);
+
+  // The nest's front rim, cut from the same picture and laid over the creature
+  const rim = STAGE.hud.rim;
+  setVisible(rim, !!loc.rim);
+  if (loc.rim) {
+    rim.style.backgroundImage = "url('" + loc.img + "')";
+    rim.style.backgroundSize = imgW + "px " + imgH + "px";
+    rim.style.backgroundPosition = ox + "px " + oy + "px";
+    const pts = loc.rim.map(([ix, iy]) => (ox + (ix / 1920) * imgW).toFixed(1) + "px " + (oy + (iy / 1072) * imgH).toFixed(1) + "px");
+    rim.style.clipPath = "polygon(" + pts.join(", ") + ")";
+  }
 }
 
 // ---------- Feeding ----------

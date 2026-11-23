@@ -120,6 +120,8 @@ kbd { font: 500 0.78rem var(--ui); padding: 2px 7px; border: 1px solid var(--lin
   pointer-events: none;
 }
 .creature.on { opacity: 1; }
+.bg-rim { position: absolute; inset: 0; background-repeat: no-repeat; pointer-events: none; }
+.creature-box.nested .creature-shadow { display: none; }
 .creature-shadow { position: absolute; left: 50%; bottom: -3%; width: 70%; height: 9%; transform: translateX(-50%); background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), transparent 70%); }
 
 .stage-top { position: absolute; left: 28px; top: 24px; width: min(340px, 60%); pointer-events: none; }
