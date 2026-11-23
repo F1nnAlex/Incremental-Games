@@ -331,6 +331,17 @@ function drawGalaxy(i) {
   else if (i === 3) { // irregular: clumpy, with pink star-forming knots
     body += cluster(503, 360, 40, ["#c4ccff", "#ffffff", "#9ec9ff"], 0.1);
     for (const [x, y] of [[34, 40], [62, 58], [55, 34]]) body += '<circle cx="' + x + '" cy="' + y + '" r="6" fill="#ff7ab8" opacity="0.35" filter="url(#' + k + 'g)"/>';
+  } else if (i === 5) { // barred spiral: a bright bar with two arms trailing from its ends
+    body += '<ellipse cx="50" cy="50" rx="44" ry="24" fill="#a5b4fc" opacity="0.12" filter="url(#' + k + 'g)"/>' + spiral(505, 2, 0.8, 600, ["#c4ccff", "#ffffff", "#9ec9ff", "#ff9ec9"]);
+    body += '<ellipse cx="50" cy="50" rx="17" ry="4.5" fill="#ffe7b8" opacity="0.8" filter="url(#' + k + 'g)"/><ellipse cx="50" cy="50" rx="7" ry="5" fill="#fff6e0"/>';
+  } else if (i === 6) { // lenticular: a smooth lens, no arms, faint dust lane
+    defs += '<radialGradient id="' + k + 'lens"><stop offset="0" stop-color="#fff2d6"/><stop offset="0.35" stop-color="#f3d9a8" stop-opacity="0.85"/><stop offset="1" stop-color="#c9b8ff" stop-opacity="0"/></radialGradient>';
+    body += '<ellipse cx="50" cy="50" rx="46" ry="15" fill="url(#' + k + 'lens)"/>' + cluster(506, 220, 30, ["#ffe2b0", "#ffffff"], 0.8).replace(/cy="([\d.]+)"/g, (m, y) => 'cy="' + (50 + (Number(y) - 50) * 0.33).toFixed(1) + '"') + '<rect x="6" y="49.3" width="88" height="1.4" fill="#3a2a3f" opacity="0.55"/>';
+  } else if (i === 7 || i === 8) { // elliptical / giant elliptical: a smooth, golden, featureless glow
+    const big = i === 8;
+    defs += '<radialGradient id="' + k + 'ell"><stop offset="0" stop-color="#fff6e0"/><stop offset="0.25" stop-color="#ffd9a0"/><stop offset="0.7" stop-color="#e0a070" stop-opacity="0.35"/><stop offset="1" stop-color="#a5b4fc" stop-opacity="0"/></radialGradient>';
+    body += '<ellipse cx="50" cy="50" rx="' + (big ? 48 : 38) + '" ry="' + (big ? 38 : 28) + '" fill="url(#' + k + 'ell)"/>' + cluster(507 + i, big ? 260 : 160, big ? 42 : 32, ["#ffe2b0", "#fff4dc"], 1);
+    if (big) for (const [x, y] of [[20, 30], [82, 70], [75, 22]]) body += '<circle cx="' + x + '" cy="' + y + '" r="2.2" fill="#ffe2b0" opacity="0.7"/>'; // swallowed satellites
   } else { // spiral galaxy
     body += '<ellipse cx="50" cy="50" rx="44" ry="24" fill="#a5b4fc" opacity="0.12" filter="url(#' + k + 'g)"/>' + spiral(504, 2, 1.1, 700, ["#c4ccff", "#ffffff", "#9ec9ff", "#ff9ec9"]) + '<ellipse cx="50" cy="50" rx="9" ry="6" fill="#fff1d0" opacity="0.85" filter="url(#' + k + 'g)"/>';
   }
@@ -359,6 +370,56 @@ function remnantArt(type, size = 100) {
   return svgWrap(key, size, "<defs>" + a.defs + "</defs>" + a.body, a.cls);
 }
 
+/** A supermassive black hole: an accretion disk, and twin jets once it is a quasar. */
+function quasarArt(size = 100, active = false) {
+  const key = "quasar" + (active ? 1 : 0);
+  if (!ART_CACHE[key]) {
+    const k = key;
+    let defs = glowFilter(k + "g", 4) + '<linearGradient id="' + k + 'disk" x1="0" x2="1"><stop offset="0" stop-color="#7a2cff"/><stop offset="0.45" stop-color="#ffcf8a"/><stop offset="0.55" stop-color="#fff4dc"/><stop offset="1" stop-color="#ff7a3c"/></linearGradient>';
+    defs += '<linearGradient id="' + k + 'jet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7dd3fc" stop-opacity="0"/><stop offset="0.5" stop-color="#e0f4ff"/><stop offset="1" stop-color="#7dd3fc" stop-opacity="0"/></linearGradient>';
+    let body = active ? '<path d="M47 50 L44 2 L56 2 L53 50 L56 98 L44 98 Z" fill="url(#' + k + 'jet)" opacity="0.8" filter="url(#' + k + 'g)"/>' : "";
+    body += '<ellipse cx="50" cy="50" rx="40" ry="11" fill="url(#' + k + 'disk)" opacity="0.9" filter="url(#' + k + 'g)"/><ellipse cx="50" cy="50" rx="40" ry="11" fill="none" stroke="#fff4dc" stroke-opacity="0.4"/>';
+    body += '<circle cx="50" cy="50" r="10" fill="#000"/><circle cx="50" cy="50" r="11.5" fill="none" stroke="#ffcf8a" stroke-width="1.2" opacity="0.9"/>';
+    body += '<path d="M10 50 A40 11 0 0 0 90 50" fill="none" stroke="url(#' + k + 'disk)" stroke-width="5" opacity="0.85"/>';
+    ART_CACHE[key] = { defs, body, cls: "art-pulse" };
+  }
+  const a = ART_CACHE[key];
+  return svgWrap(key, size, "<defs>" + a.defs + "</defs>" + a.body, a.cls);
+}
+
+/** Two galaxies colliding, with tidal tails (for the Merger modal). */
+function mergerArt(size = 100) {
+  const key = "mergerpair";
+  if (!ART_CACHE[key]) {
+    const k = key;
+    let defs = glowFilter(k + "g", 4);
+    let body = '<g transform="translate(-14,-8) scale(0.75) rotate(-25 50 50)">' + spiral(601, 2, 1.0, 380, ["#c4ccff", "#ffffff", "#9ec9ff"]) + '<ellipse cx="50" cy="50" rx="7" ry="5" fill="#fff1d0"/></g>';
+    body += '<g transform="translate(38,30) scale(0.6) rotate(40 50 50)">' + spiral(602, 2, 1.0, 300, ["#ffd9a0", "#ffffff", "#ff9ec9"]) + '<ellipse cx="50" cy="50" rx="7" ry="5" fill="#fff1d0"/></g>';
+    body += '<path d="M30 34 C 55 20, 75 25, 92 10" fill="none" stroke="#c4ccff" stroke-width="2" opacity="0.35" filter="url(#' + k + 'g)"/><path d="M62 66 C 40 82, 20 80, 6 94" fill="none" stroke="#ffd9a0" stroke-width="2" opacity="0.35" filter="url(#' + k + 'g)"/>';
+    ART_CACHE[key] = { defs, body, cls: "art-twinkle" };
+  }
+  const a = ART_CACHE[key];
+  return svgWrap(key, size, "<defs>" + a.defs + "</defs>" + a.body, a.cls);
+}
+
+/** The Local Group: your galaxy in the middle, Andromeda and Triangulum to one side, satellites around you.
+ *  Absorbed galaxies fade out. */
+function localGroupMap(absorbedCount) {
+  const W = 560, H = 230;
+  // positions of the 12 satellites in SATELLITES order (map coordinates)
+  const pos = [[300, 84], [252, 70], [262, 160], [214, 150], [196, 86], [140, 54], [306, 132], [236, 196], [196, 186], [492, 186], [404, 36], [458, 84]];
+  const sizes = [4, 6, 6, 7, 9, 8, 10, 14, 18, 22, 10, 44];
+  let out = '<svg viewBox="0 0 ' + W + " " + H + '" width="100%" height="' + H + '" role="img" aria-label="Map of the Local Group">';
+  out += '<rect x="0" y="0" width="' + W + '" height="' + H + '" fill="#060914"/>';
+  for (let i = 0; i < 60; i++) { const x = (i * 97) % W, y = (i * 53) % H; out += '<circle cx="' + x + '" cy="' + y + '" r="0.8" fill="#fff" opacity="0.35"/>'; }
+  const g = (idx, x, y, sz, label, faded) => '<g opacity="' + (faded ? 0.18 : 1) + '"><g transform="translate(' + (x - sz) + "," + (y - sz) + ')">' + galaxyArt(idx, sz * 2) + "</g>" + (label ? '<text x="' + x + '" y="' + (y + sz + 12) + '" fill="#9fb0d8" font-size="10" text-anchor="middle">' + label + "</text>" : "") + "</g>";
+  const names = ["Segue 1", "Draco", "Ursa Minor", "Sculptor", "Fornax", "Leo I", "Sagittarius", "SMC", "LMC", "Triangulum", "M32", "Andromeda"];
+  const art = [0, 2, 2, 2, 2, 2, 3, 3, 3, 4, 7, 4];
+  pos.forEach(([x, y], i) => { out += g(art[i], x, y, sizes[i], names[i], i < absorbedCount); });
+  out += g(absorbedCount >= 12 ? 8 : absorbedCount >= 11 ? 7 : absorbedCount >= 10 ? 6 : absorbedCount >= 1 ? 5 : 4, 250, 115, 34, "You", false);
+  return out + "</svg>";
+}
+
 // ---------- Icons ----------
 
 const TAB_ICONS = {
@@ -366,6 +427,7 @@ const TAB_ICONS = {
   star: '<circle cx="12" cy="12" r="4.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/>',
   supernova: '<path d="M12 2l2.2 6.5L21 9l-5.2 4.2L17.6 20 12 16.3 6.4 20l1.8-6.8L3 9l6.8-.5z"/>',
   galaxy: '<path d="M12 12c0-3 3-5 6-4M12 12c0 3-3 5-6 4M12 12c3 0 5 3 4 6M12 12c-3 0-5-3-4-6"/><circle cx="12" cy="12" r="1.6"/>',
+  localgroup: '<circle cx="8" cy="12" r="4"/><circle cx="17" cy="8" r="2.5"/><circle cx="17.5" cy="16.5" r="1.8"/><path d="M11.5 10.5l3.6-1.6M11.5 13.5l4.4 2.2"/>',
   upgrades: '<path d="M12 4l7 7h-4v9H9v-9H5z"/>',
   achievements: '<path d="M7 4h10v4a5 5 0 01-10 0zM12 13v4M8 21h8M7 6H4a3 3 0 003 4M17 6h3a3 3 0 01-3 4"/>',
   stats: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
@@ -387,6 +449,10 @@ function achArt(id) {
   if (id === "a67") return galaxyArt(2, 40);
   if (id === "a68") return galaxyArt(4, 40);
   if (id === "a72") return formArt(12, 40);
+  if (id === "a85") return quasarArt(40, true);
+  if (id === "a87") return galaxyArt(6, 40);
+  if (id === "a88") return galaxyArt(8, 40);
+  if (id === "a81" || id === "a83") return mergerArt(40);
   if (id === "a77") return galaxyArt(3, 40);
   const glyph = { 1: "✦", 2: "◍", 3: "☀", 4: "✧", 5: "✺", 6: "⚛", 7: "◎" }[id[1]] || "★";
   return '<svg viewBox="0 0 40 40" aria-hidden="true"><text x="20" y="27" text-anchor="middle" font-size="20" fill="currentColor">' + glyph + "</text></svg>";

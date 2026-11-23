@@ -978,3 +978,7 @@ body.no-anim .art, body.no-anim .art * { animation: none !important; }
 .rotation-top { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; margin: 8px 0 12px; }
 .rotation-art { width: 120px; height: 120px; transition: transform 1s linear; }
 .rotation-side { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px; }
+.lg-map { border: 1px solid var(--border); margin: 6px 0 10px; overflow: hidden; }
+.lg-map svg { display: block; }
+.smbh-art svg { display: block; }
+.milestone.major .milestone-req { color: #5eead4; }

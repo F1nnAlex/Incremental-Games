@@ -33,7 +33,8 @@ function anomalyDone(id) {
 }
 /** Rewards count double from 25 Galactic Years. */
 function anomalyRewardCount(id) {
-  return anomalyDone(id) * (typeof galacticYears === "function" && galacticYears() >= 25 ? 2 : 1);
+  const extra = player.merger && absorbed("umi") ? 2 : 0; // Ursa Minor Dwarf
+  return (anomalyDone(id) + extra) * (typeof galacticYears === "function" && galacticYears() >= 25 ? 2 : 1);
 }
 function anomalyGoal(id) {
   const a = ANOMALY_BY_ID[id];
@@ -75,7 +76,7 @@ registerSystem({
   unlocked: () => supernovae() >= 10 || player.kilonova.resets > 0,
   unlockText: "Strange Supernovae have been seen. New: Supernova Anomalies (Supernova tab).",
   startData: () => ({ active: "", done: Object.fromEntries(ANOMALIES.map((a) => [a[0], 0])) }),
-  keep: (resetting) => resetting === "kilonova" || resetting === "galaxy", // completions are never lost
+  keep: (resetting) => resetting === "kilonova" || resetting === "galaxy" || resetting === "merger", // completions are never lost
   afterKeep: (s) => { s.active = ""; },
 });
 

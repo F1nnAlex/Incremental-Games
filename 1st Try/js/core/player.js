@@ -13,14 +13,14 @@ function getStartPlayer() {
     tab: "body",
     unlocked: Object.fromEntries(LAYER_ORDER.concat(typeof SYSTEM_ORDER !== "undefined" ? SYSTEM_ORDER : []).map((id) => [id, false])),
     auto: getAutomationDefaults(),
-    subtabs: { body: "mass", star: "core", supernova: "explosion", galaxy: "starburst" }, // open sub-tab per big tab
+    subtabs: { body: "mass", star: "core", supernova: "explosion", galaxy: "starburst", localgroup: "merger" }, // open sub-tab per big tab
     seen: [],
     achievements: [], // ids of unlocked achievements // sub-tabs opened at least once ("tab/sub"); new ones get a notification dot
     stats: {
       timePlayed: 0, // seconds
-      first: { collision: 0, fusion: 0, supernova: 0, kilonova: 0, galaxy: 0 }, // time played at the first reset of each layer
-      last: { collision: 0, fusion: 0, supernova: 0, kilonova: 0, galaxy: 0 }, // time played at the last reset
-      fastest: { collision: 0, fusion: 0, supernova: 0, kilonova: 0, galaxy: 0 }, // fastest time between two resets
+      first: { collision: 0, fusion: 0, supernova: 0, kilonova: 0, galaxy: 0, merger: 0 }, // time played at the first reset of each layer
+      last: { collision: 0, fusion: 0, supernova: 0, kilonova: 0, galaxy: 0, merger: 0 }, // time played at the last reset
+      fastest: { collision: 0, fusion: 0, supernova: 0, kilonova: 0, galaxy: 0, merger: 0 }, // fastest time between two resets
       started: Date.now(),
     },
     options: {

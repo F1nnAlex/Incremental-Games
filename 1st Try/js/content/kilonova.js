@@ -70,6 +70,7 @@ function freeNeutronRate() {
   if (treeHas("c1")) r = r.mul(2); // Neutron Flux (tree)
   r = r.mul(anomalyNeutronMult()); // Magnetar (anomaly reward)
   r = r.mul(spectrumEffect("xray")); // X-ray band
+  if (player.merger && absorbed("fornax")) r = r.mul(player.merger.globulars.add(1).pow(0.3)); // Fornax: Globular Clusters
   return drip ? r.mul(treeHas("n1") ? 0.1 : 0.01) : r; // Pulsar Beam (tree)
 }
 
@@ -195,7 +196,7 @@ function kilonovaIronLimitDiv() {
 }
 
 function kilonovaRequirement() {
-  return E(KILONOVA.reqBase).mul(Decimal.pow(KILONOVA.reqGrowth - kilonovaGrowthCut(), player.kilonova.resets)).div(rElemLevel("Pt") + 1).div(treeHas("c4") ? 2 : 1); // Krypton / Lead refinements, Fission Recycling (tree)
+  return E(KILONOVA.reqBase).mul(Decimal.pow(KILONOVA.reqGrowth - kilonovaGrowthCut(), player.kilonova.resets)).div(rElemLevel("Pt") + 1).div(treeHas("c4") ? 2 : 1).div(smbhPerk(5) ? 100 : 1); // Krypton / Lead refinements, Fission Recycling (tree), TON 618
 }
 
 function kilonovaDrops() {
@@ -269,6 +270,7 @@ registerLayer({
     },
     onReset: (gain) => {
       refineOnReset("kilonova");
+      gwOnKilonova(); // a neutron-star merger: gravitational waves
       if (rememberRemnants) {
         rememberRemnants = false;
         for (const t in player.supernova.chosen) player.supernova.chosen[t] = Math.floor(player.supernova.chosen[t] / 2);

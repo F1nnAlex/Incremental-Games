@@ -26,7 +26,8 @@ const SPECTRUM_CHAIN = makeChain({
   money: () => player.galaxy.darkMatter,
   spend: (c) => { player.galaxy.darkMatter = player.galaxy.darkMatter.sub(c).max(0); },
   noSpend: () => galacticYears() >= 3,
-  base: (i) => (i === 0 ? 0 : SPECTRUM.base * SPECTRUM.speed),
+  base: (i) => (i === 0 ? 0 : SPECTRUM.base * SPECTRUM.speed * (hasUpgrade("galaxy", 5) ? 2 : 1)), // Thick Disk
+  doubleEvery: () => (player.merger && absorbed("sculptor") ? 8 : 10), // Sculptor Dwarf
 });
 
 /** The multiplier a band gives (1 when you have none of it). */
@@ -39,8 +40,8 @@ function spectrumEffect(id) {
     case "ir": return l.add(1).pow(2);
     case "vis": return l.add(1).pow(5);
     case "uv": return l.div(2).add(1);
-    case "xray": return l.add(1);
-    case "gamma": return l.div(2).add(1);
+    case "xray": return l.add(1).mul(smbhPerk(1) ? 2 : 1); // Seyfert nucleus
+    case "gamma": return l.div(2).add(1).mul(smbhPerk(1) ? 2 : 1);
   }
   return E(1);
 }
@@ -51,6 +52,7 @@ registerSystem({
   unlocked: () => starbursts() >= 1,
   unlockText: "Your galaxy shines in every colour of light. New: EM Spectrum (Galaxy tab).",
   startData: () => SPECTRUM_CHAIN.startState(),
+  keep: (resetting) => resetting === "merger" && hasMilestone("merger", "m2"),
   tick(dt) {
     SPECTRUM_CHAIN.tick(player.galaxy.spectrum, dt);
   },
@@ -75,6 +77,7 @@ const YEAR_PERKS = [
   [15, "Every Kilonova drops one more heavy element."],
   [25, "Supernova Anomaly rewards count double."],
   [40, "The Starburst requirement ÷10."],
+  [60, "Tidal Streams ×2."],
 ];
 
 function galacticYears() {
@@ -88,7 +91,11 @@ function rotationPeriod() {
   return E(ROTATION.period).mul(Decimal.pow(ROTATION.growth, galacticYears())).div(rotationSpeed());
 }
 function rotationSpeed() {
-  return player.galaxy.darkMatter.add(1).pow(ROTATION.dmPow);
+  let s = player.galaxy.darkMatter.add(1).pow(ROTATION.dmPow);
+  if (hasMilestone("merger", "m5")) s = s.mul(2);
+  if (player.merger && absorbed("lmc")) s = s.mul(2); // Large Magellanic Cloud
+  if (hasUpgrade("galaxy", 4)) s = s.mul(1.5); // Spiral Density Wave
+  return s;
 }
 
 registerSystem({
@@ -96,6 +103,7 @@ registerSystem({
   layer: "galaxy",
   unlocked: () => starbursts() >= 1,
   startData: () => ({ progress: 0, years: 0 }),
+  keep: (resetting) => resetting === "merger", // Galactic Years are never lost
   tick(dt) {
     const r = player.galaxy.rotation;
     r.progress += dt;

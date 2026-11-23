@@ -88,7 +88,6 @@ function systemKeeps(target, resetting) {
  * state: { amt: { id: Decimal }, bought: { id: Decimal } }
  */
 function makeChain(def) {
-  const doubleEvery = def.doubleEvery || 10;
   for (const t of def.tiers) Object.assign(t, makeExpCost({ start: t.costStart, growth: t.costGrowth }));
   const chain = {
     def,
@@ -105,7 +104,7 @@ function makeChain(def) {
     /** Production of one unit of tier i per second. */
     perUnit(state, i) {
       const t = def.tiers[i];
-      const doublings = state.bought[t.id].div(doubleEvery).floor();
+      const doublings = state.bought[t.id].div(resolve(def.doubleEvery) || 10).floor();
       return E(def.base ? def.base(i) : 1).mul(Decimal.pow(2, doublings)).mul(def.mult ? def.mult(i) : 1);
     },
     /** What tier i makes per second (of tier i-1, or of the output for tier 0). */

@@ -51,6 +51,15 @@ function tabGroups() {
         { id: "halo", name: "Halo", build: (p) => buildLayerContent(L.galaxy, p, { prestige: false, milestones: false, extra: false, autoKeys: ["halo"] }) },
       ],
     },
+    {
+      id: "localgroup", name: "Local Group", icon: "localgroup", color: L.merger.color, unlocked: () => tmp.merger.unlocked,
+      subs: [
+        { id: "merger", name: "Merger", layer: "merger", build: (p) => buildLayerContent(L.merger, p) },
+        { id: "satellites", name: "Satellites", build: (p) => buildSatellitesTab(p) },
+        { id: "blackhole", name: "Black Hole", unlocked: () => systemUnlocked("smbh"), build: (p) => buildSmbhTab(p) },
+        { id: "observatories", name: "Observatories", unlocked: () => systemUnlocked("observatories"), attention: () => !isAutoOn("merger", "observatories") && OBSERVATORIES.some((o) => canBuildObservatory(o[0])), build: (p) => buildObservatoriesTab(p) },
+      ],
+    },
   ];
 }
 

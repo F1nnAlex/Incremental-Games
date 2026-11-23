@@ -9,6 +9,7 @@ const ACH_ROWS = [
   { name: "Supernova", reward: "Neutronium gain ×1.5", color: "#ff9f43" },
   { name: "Heavy & Galaxy", reward: "Star gain ×1.25", color: "#a5b4fc" },
   { name: "Depth", reward: "Dark Matter gain ×2", color: "#7dd3fc" },
+  { name: "Local Group", reward: "Tidal Streams ×1.5", color: "#5eead4" },
 ];
 
 const formAt = (n) => () => evo() >= n;
@@ -76,6 +77,15 @@ const ACHIEVEMENTS = [
   ["a76", "Anomalous", "Complete Supernova Anomalies 10 times in total.", () => ANOMALIES.reduce((n, a) => n + anomalyDone(a[0]), 0) >= 10],
   ["a77", "Full Spectrum", "Hold some Gamma rays.", () => player.galaxy.spectrum.amt.gamma.gt(0)],
   ["a78", "Cosmic Calendar", "Reach 10 Galactic Years.", () => galacticYears() >= 10],
+  // Row 8: Local Group
+  ["a81", "Cannibal", "Swallow your first galaxy (Segue 1).", () => mergers() >= 1],
+  ["a82", "Dark Dwarfs", "Absorb the Draco Dwarf.", () => absorbed("draco")],
+  ["a83", "Stream Crossing", "Absorb the Sagittarius Dwarf.", () => absorbed("sgr")],
+  ["a84", "Magellanic", "Absorb both Magellanic Clouds.", () => absorbed("lmc")],
+  ["a85", "Awakening", "Grow your black hole into a Quasar.", () => smbhPerk(3)],
+  ["a86", "Chirp", "Build LIGO.", () => observatoryBuilt("ligo")],
+  ["a87", "Lenticular", "Merge with the Triangulum Galaxy.", () => absorbed("m33")],
+  ["a88", "Milkomeda", "Merge with Andromeda.", () => absorbed("m31")],
 ];
 const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a[0], a]));
 
@@ -118,6 +128,9 @@ function achStarMult() {
 }
 function achDarkMatterMult() {
   return achRowDone(6) ? 2 : 1;
+}
+function achStreamMult() {
+  return achRowDone(7) ? 1.5 : 1;
 }
 
 // ---------- Tab ----------

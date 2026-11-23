@@ -42,11 +42,34 @@ js/content/         the game itself
   tree.js           system: Nucleosynthesis Tree (Neutronium upgrade tree with prerequisites, refund)
   anomalies.js      system: Supernova Anomalies (6 repeatable challenges × 10 completions)
   spectrum.js       systems: EM Spectrum (Radio → … → Gamma chain) and Galactic Rotation (years and perks)
-  achievements.js   56 achievements in 7 rows (one per era + the systems), their bonuses and tab
+  merger.js         layer 7 (Update 7, Local Group): Galactic Merger → Tidal Streams, the satellite ladder
+                    (Segue 1 … Andromeda), Merger upgrades and milestones, passive Starbursts
+  smbh.js           system: Supermassive Black Hole (Sgr A* → TON 618, growth capped by your galaxy)
+  observatories.js  system: Gravitational-Wave Observatories (GW signals from Mergers and Kilonovae)
+  achievements.js   64 achievements in 8 rows (one per era + the systems), their bonuses and tab
   art.js            SVG pictures of all 30 forms, 5 galaxy forms, 2 remnants; tab and achievement icons
   sky.js            the animated starfield behind the game (tinted by era, off with reduced motion)
 js/game.js          startup, header (form picture, Evolve bar, reset chips), new-layer modal
 ```
+
+## Local Group (layer 7, Update 7)
+At Spiral Galaxy the **Local Group** tab opens.
+- **Merger:** a Merger absorbs the next galaxy of the Local Group, in a fixed order:
+  - the dwarfs: Segue 1, Draco, Ursa Minor, Sculptor, Fornax, Leo I, the Sagittarius Dwarf and the two Magellanic Clouds
+  - then Triangulum (Lenticular Galaxy), M32 and NGC 205, and finally Andromeda (Giant Elliptical "Milkomeda", the end of Update 7).
+- **Requirement and reward:** each Merger needs a set number of Stars formed since the last Merger. It gives **Tidal Streams** = base × (Stars ÷ requirement)^0.5. Each absorbed galaxy gives one unique effect.
+- **Resets and keeps:** a Merger resets the Galaxy layer and everything below it. Galactic Years, Anomaly completions, heavy elements, refinements and Star Map completions stay.
+- **Milestones:**
+  - 1: start with 6 Starbursts and keep your forms.
+  - 2: keep the Halo and the Spectrum.
+  - 3: **passive Starbursts**.
+  - 5: Rotation ×2.
+  - 8: Auto Merger.
+- **Upgrades:** 10 Merger upgrades (Tidal Streams), plus the Galaxy layer's first 6 upgrades (bought with Stars).
+- **Systems:**
+  - **Supermassive Black Hole:** grows ×2 every 10 min up to a cap that rises ×3 per Merger. Six perks at real black-hole masses (Sgr A*, Seyfert, radio galaxy, quasar, M87*, TON 618).
+  - **Gravitational-Wave Observatories:** GW signals come from Mergers and Kilonovae and build LIGO, Virgo, KAGRA, a Pulsar Timing Array and LISA.
+- **Knobs:** `MERGER` and `SATELLITES` in `merger.js`, `SMBH` in `smbh.js`, `OBSERVATORIES` in `observatories.js`.
 
 ## Systems (the Depth update)
 Systems are mechanics that live inside an existing layer instead of being a reset of their own. They are registered with `registerSystem({ id, layer, startData, unlocked, tick, keep, afterKeep, automation })` from `js/core/systems.js`. Their save data is `player[layer][id]`, so they reset together with their host layer unless `keep(resettingLayer)` says otherwise. Generator chains (tier n makes tier n−1, every 10 bought doubles a tier) come from `makeChain()` and `buildChainUI()`.
@@ -104,7 +127,11 @@ Pacing was tuned with a simulator that plays greedily (Update 6 numbers, Neutron
 | First Kilonova | 6h14 |
 | Uranium, 9th Kilonova (end of Update 4) | 11h19 |
 | Irregular Galaxy (Auto Starburst) | 12h50 |
-| **Spiral Galaxy (end of Update 5)** | **20h20** (Black Hole path: 18h22) |
+| Spiral Galaxy (end of Update 5) | 20h20 |
+| First Merger (Segue 1) | 21h10 |
+| Passive Starbursts (3 Mergers) | 22h07 |
+| Triangulum: Lenticular Galaxy | 29h10 |
+| **Andromeda: "Milkomeda" (end of Update 7)** | **33h53** (Black Hole path: 30h28) |
 
 | Era | Length |
 |---|---|
@@ -114,6 +141,7 @@ Pacing was tuned with a simulator that plays greedily (Update 6 numbers, Neutron
 | Supernova (to the Kilonova upgrade) | 2h03 |
 | Neutron Capture (to Uranium) | 5h38 |
 | Galaxy (to Spiral Galaxy) | 9h02 |
+| Local Group (to Milkomeda) | 13h34 |
 
 Tuning knobs that matter most: Static Charge (1.5 pg/s per level) and `ATMO.base` (4e-4) for the early game, `STARMAP.tierRamp` (14) and `coldFusion` (3) for the Star Map, the Kilonova upgrade cost (250,000), `KILONOVA.reqBase` (200,000), `reqGrowth` (2.7) and `uraniumAt` (9) for Update 4, and `GALAXY.starburstAt` (20,000), `reqGrowth` (1.28 for 60 Starbursts), `starPow` (0.6) and the galaxy form goals for Update 5. The systems' own knobs are at the top of each system file (`INTERIOR`, `PSYS`, `NURSERY`, `REFINES`, `TREE`, `ANOMALIES`, `BANDS`, `ROTATION`).
 

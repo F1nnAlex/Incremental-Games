@@ -89,7 +89,7 @@ registerSystem({
   unlocked: () => collisions() >= 1 || generations() > 0 || supernovae() > 0,
   unlockText: "Your body is hot enough to melt inside. New: Planetary Interior (Body tab).",
   startData: () => Object.assign(INTERIOR_CHAIN.startState(), { field: E(0), spent: E(0) }),
-  keep: (resetting) => (resetting === "fusion" && hasFieldPerk(5)) || (resetting === "supernova" && treeHas("x5")) || (resetting === "galaxy" && hasYearPerk(5)), // Frozen-in Field; Sedov Phase (tree); 5 Galactic Years
+  keep: (resetting) => (resetting === "fusion" && hasFieldPerk(5)) || (resetting === "supernova" && treeHas("x5")) || (resetting === "galaxy" && hasYearPerk(5)) || (resetting === "merger" && absorbed("smc")), // Frozen-in Field; Sedov Phase (tree); 5 Galactic Years; Small Magellanic Cloud
   afterKeep: (s) => { s.spent = E(0); }, // the Shards themselves are gone, so Shrapnel stops counting them
   tick(dt) {
     const s = player.collision.interior;

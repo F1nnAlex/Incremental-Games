@@ -12,13 +12,14 @@ const LAYER_INTRO = {
   starmap: ["Star Map", "Your next generations can be born in hostile regions of the galaxy. Each region has a harsh rule and 5 tiers. Find it under Star → Star Map."],
   supernova: ["Supernova", "Your Supergiant can now burn all the way to iron. At 1.4 M☉ of Iron the core collapses: Supernova. A new big tab: Supernova."],
   kilonova: ["Neutron Capture", "Neutron stars collide. Free Neutrons climb the s-process ladder and Kilonovae drop rare heavy elements. Find it under Supernova → Neutron Capture."],
+  merger: ["Local Group", "Your galaxy is not alone. Merge with the small galaxies around you, one at a time, and grow your central black hole. Each Merger resets the Galaxy layer and gives Tidal Streams. A new big tab: Local Group."],
   galaxy: ["Galaxy", "Your debris forms new stars around you. Starburst for Stars, place them in spiral arms and grow from a Star Cluster into a Spiral Galaxy. A new big tab: Galaxy."],
 };
 
 function announceLayer(id) {
   const intro = LAYER_INTRO[id];
   if (!intro) return notify("New layer unlocked: " + LAYERS[id].name + "!");
-  const art = { collision: formArt(5, 120), atmosphere: formArt(9, 120), fusion: formArt(15, 120), starmap: galaxyArt(3, 120), supernova: formArt(18, 120), kilonova: remnantArt("ns", 120), galaxy: galaxyArt(4, 120) }[id];
+  const art = { collision: formArt(5, 120), atmosphere: formArt(9, 120), fusion: formArt(15, 120), starmap: galaxyArt(3, 120), supernova: formArt(18, 120), kilonova: remnantArt("ns", 120), galaxy: galaxyArt(4, 120) , merger: typeof mergerArt === "function" ? mergerArt(120) : galaxyArt(4, 120) }[id];
   showModal({ title: "New: " + intro[0], text: intro[1], art, buttons: [{ label: "Open it", action: () => showLayer(id) }, { label: "Later" }] });
 }
 
@@ -29,6 +30,7 @@ const RESET_CHIPS = [
   ["supernova", "Supernova"],
   ["kilonova", "Kilonova"],
   ["galaxy", "Starburst"],
+  ["merger", "Merge"],
 ];
 
 function buildHeader() {

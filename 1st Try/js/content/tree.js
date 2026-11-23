@@ -77,7 +77,7 @@ registerSystem({
   startData: () => ({ bought: [], spent: E(0) }),
   tick: (dt) => treeTick(dt),
   // Kilonova: keep the Explosion branch from the 2nd Kilonova; Starburst: keep it from Globular Cluster
-  keep: (resetting) => (resetting === "kilonova" && player.kilonova.resets >= 2) || (resetting === "galaxy" && hasGalaxyForm(1)),
+  keep: (resetting) => (resetting === "kilonova" && player.kilonova.resets >= 2) || (resetting === "galaxy" && hasGalaxyForm(1)) || resetting === "merger",
   afterKeep: (s) => {
     s.bought = s.bought.filter((id) => TREE_BY_ID[id][1] === "explosion");
     s.spent = E(0);

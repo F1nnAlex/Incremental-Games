@@ -54,7 +54,7 @@ registerSystem({
   unlocked: () => generations() >= STARMAP_UNLOCK_WINDS || supernovae() > 0,
   unlockText: "Your Stellar Winds stir up the gas around you. New: Stellar Nursery (Star → Core).",
   startData: () => NURSERY_CHAIN.startState(),
-  keep: (resetting) => (resetting === "supernova" && treeHas("x3")) || (resetting === "galaxy" && hasYearPerk(5)), // Swept-up Shell (tree), 5 Galactic Years
+  keep: (resetting) => (resetting === "supernova" && treeHas("x3")) || (resetting === "galaxy" && hasYearPerk(5)) || (resetting === "merger" && absorbed("smc")), // Swept-up Shell (tree), 5 Galactic Years, Small Magellanic Cloud
   tick(dt) {
     const s = player.fusion.nursery;
     NURSERY_CHAIN.tick(s, dt); // the output (SFR) is read live, not stored

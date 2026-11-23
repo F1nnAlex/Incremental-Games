@@ -90,7 +90,7 @@ registerSystem({
   unlocked: () => evo() >= RED_DWARF_STAGE || generations() > 0 || supernovae() > 0,
   unlockText: "Your core can now refine elements. New: Refine buttons in the Periodic Table.",
   startData: () => ({ done: [] }),
-  keep: (resetting) => resetting === "galaxy", // heavy refinements are permanent
+  keep: (resetting) => resetting === "galaxy" || resetting === "merger", // heavy refinements are permanent
   automation: {
     refine: {
       name: "Auto Refine",

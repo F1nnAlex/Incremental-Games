@@ -31,7 +31,7 @@ const GALAXY_FORMS = [
   ["Globular Cluster", 25, "Keep Supernova upgrades on Starburst."],
   ["Dwarf Galaxy", 200, "Dark Matter ×3."],
   ["Irregular Galaxy", 2500, "Unlock Auto Starburst."],
-  ["Spiral Galaxy", 8000, "End of Update 5. Your galaxy is not alone... (to be continued: Local Group)"],
+  ["Spiral Galaxy", 8000, "Your galaxy is not alone: unlock the Local Group (Galactic Mergers)."],
 ];
 
 /** Neutronium needed this cycle for a Starburst (halved by the Nuclear Star Cluster). */
@@ -44,7 +44,14 @@ function autoBurstReady() {
 }
 
 function starburstReq() {
-  return E(GALAXY.starburstAt).mul(Decimal.pow(GALAXY.reqGrowth, Math.min(player.galaxy.resets, GALAXY.reqGrowthCap))).div(hasMilestone("evolution", "e29") ? 2 : 1).div(refined("Th") ? 2 : 1).div(spectrumEffect("gamma")).div(hasYearPerk(40) ? 10 : 1); // Thorium Decay (refinement), Gamma band, 40 Galactic Years
+  return E(GALAXY.starburstAt).mul(Decimal.pow(GALAXY.reqGrowth, Math.min(player.galaxy.resets, GALAXY.reqGrowthCap))).div(hasMilestone("evolution", "e29") ? 2 : 1).div(refined("Th") ? 2 : 1).div(spectrumEffect("gamma")).div(hasYearPerk(40) ? 10 : 1).div(smbhPerk(2) ? 10 : 1).div(hasUpgrade("galaxy", 6) ? player.galaxy.lifeStars.add(10).log10().add(1) : 1); // Thorium Decay (refinement), Gamma band, 40 Galactic Years, Radio galaxy (SMBH), Galactic Habitable Zone
+}
+
+let galaxyPassiveClock = 0;
+
+/** Draco Dwarf: Halo buildings get a free level for every 5 Galactic Years. */
+function draconisLevels() {
+  return typeof absorbed === "function" && player.merger && absorbed("draco") ? E(Math.floor(galacticYears() / 5)) : E(0);
 }
 
 function galaxyUnlocked() {
@@ -70,6 +77,14 @@ function armStars(id) {
   return player.galaxy.arms[id];
 }
 
+/** Stars that count for an arm's effects (Lenticular, Violent Relaxation and Disk Settling change this). */
+function armPower(id) {
+  let s = lenticular() ? player.galaxy.stars : armStars(id);
+  if (!lenticular() && hasUpgrade("merger", 4)) s = s.add(freeStars()); // Violent Relaxation
+  if (hasUpgrade("galaxy", 3)) s = s.mul(1.5); // Disk Settling
+  return s;
+}
+
 function freeStars() {
   let s = player.galaxy.stars;
   for (const id of ARM_IDS) s = s.sub(armStars(id));
@@ -89,23 +104,29 @@ function resetArms() {
 // ---------- Effects on other layers ----------
 
 function galaxySoftcapMult() {
-  return armStars("stellar").add(1).pow(2);
+  return armPower("stellar").add(1).pow(2);
 }
 
 function galaxyFusionMult() {
-  return armStars("stellar").add(1).pow(0.5);
+  return armPower("stellar").add(1).pow(0.5);
 }
 
 function galaxyNeutroniumMult() {
-  return armStars("neutron").add(1).pow(GALAXY.neutronArmPow).mul(buyableEffect("galaxy", "density"));
+  return armPower("neutron").add(1).pow(GALAXY.neutronArmPow).mul(buyableEffect("galaxy", "density"));
 }
 
 function galaxyFreeNeutronMult() {
-  return armStars("rprocess").add(1).mul(buyableEffect("galaxy", "spin"));
+  return armPower("rprocess").add(1).mul(buyableEffect("galaxy", "spin"));
 }
 
 function galaxyExtraDrops() {
-  return armStars("rprocess").add(1).log10().floor();
+  return armPower("rprocess").add(1).log10().floor();
+}
+
+/** The name of your galaxy right now (Local Group forms after the first Merger). */
+function galaxyFormName() {
+  if (typeof mergerForm === "function" && mergerForm() >= 0) return MERGER_FORMS[mergerForm()][0];
+  return galaxyForm() >= 0 ? GALAXY_FORMS[galaxyForm()][0] : "None yet";
 }
 
 function darkMatterRate() {
@@ -113,7 +134,10 @@ function darkMatterRate() {
   let r = player.galaxy.stars.pow(GALAXY.darkPow);
   if (hasGalaxyForm(2)) r = r.mul(3);
   if (hasMilestone("evolution", "e27")) r = r.mul(2); // Dark Star
-  return r.mul(spectrumEffect("radio")).mul(achDarkMatterMult()); // Radio band, achievements (Depth row)
+  r = r.mul(spectrumEffect("radio")).mul(achDarkMatterMult()); // Radio band, achievements (Depth row)
+  if (hasUpgrade("galaxy", 2)) r = r.mul(player.galaxy.stars.add(10).log10()); // Galactic Fountain
+  if (hasUpgrade("merger", 9)) r = r.mul(upgradeEffect("merger", 9)); // Stellar Halo
+  return r;
 }
 
 /** Kilonovae you start each Starburst cycle with (their milestones come with them). */
@@ -148,20 +172,22 @@ registerLayer({
   resources: () => [
     { label: "Stars", value: formatWhole(player.galaxy.stars), sub: formatWhole(freeStars()) + " unassigned" },
     { label: "Dark Matter", value: format(player.galaxy.darkMatter), sub: "+" + format(darkMatterRate()) + "/s" },
-    { label: "Galaxy", value: galaxyForm() >= 0 ? GALAXY_FORMS[galaxyForm()][0] : "None yet", sub: "Starbursts: " + starbursts() },
+    { label: "Galaxy", value: galaxyFormName(), sub: "Starbursts: " + starbursts() },
   ],
 
-  layerHeader: () => ["You have ", amountText("galaxy", player.galaxy.stars), ". " + (galaxyForm() >= 0 ? "You are " + withArticle(GALAXY_FORMS[galaxyForm()][0]) + "." : "No galaxy yet.")],
+  layerHeader: () => ["You have ", amountText("galaxy", player.galaxy.stars), ". " + (galaxyForm() >= 0 ? "You are " + withArticle(galaxyFormName()) + "." : "No galaxy yet.")],
 
   prestige: {
     gain: () => {
       if (player.galaxy.cycleNeutronium.lt(starburstReq())) return E(0);
-      const g = player.galaxy.cycleNeutronium.div(starburstReq()).pow(GALAXY.starPow).mul(buyableEffect("galaxy", "lensing")).mul(hasMilestone("evolution", "e28") ? 1.5 : 1).mul(achStarMult()).mul(refined("U") ? 1.5 : 1).mul(spectrumEffect("micro")); // Uranium Fission (refinement), Microwave band
+      const g = player.galaxy.cycleNeutronium.div(starburstReq()).pow(GALAXY.starPow).mul(buyableEffect("galaxy", "lensing")).mul(hasMilestone("evolution", "e28") ? 1.5 : 1).mul(achStarMult()).mul(refined("U") ? 1.5 : 1).mul(spectrumEffect("micro")) // Uranium Fission (refinement), Microwave band
+        .mul(hasUpgrade("merger", 1) ? 2 : 1).mul(hasUpgrade("galaxy", 1) ? armPower("stellar").add(1).pow(0.1) : 1).mul(absorbed("m31") ? 10 : 1).div(quenchDiv()); // Tidal Tails, Bar Instability, Milkomeda, quasar feedback
       return softcap(g, GALAXY.starSoftcap, 0.5).floor().max(1);
     },
-    canReset: () => player.galaxy.cycleNeutronium.gte(starburstReq()),
+    canReset: () => !passiveStarbursts() && player.galaxy.cycleNeutronium.gte(starburstReq()),
+    passive: () => (passiveStarbursts() ? 1 : 0),
     requirementText: () => "Earn " + formatWhole(starburstReq()) + " Neutronium since your last Starburst (you have " + formatWhole(player.galaxy.cycleNeutronium) + ")",
-    buttonText: () => (tmp.galaxy.canPrestige ? "Starburst: +" + amountText("galaxy", tmp.galaxy.prestigeGain) : "Starburst"),
+    buttonText: () => (passiveStarbursts() ? "Starbursts happen on their own" : tmp.galaxy.canPrestige ? "Starburst: +" + amountText("galaxy", tmp.galaxy.prestigeGain) : "Starburst"),
     infoText: () => "Your debris collapses into new stars. Resets the Kilonova layer (Kilonovae, Free Neutrons) and everything below it. Heavy elements, the s-process ladder and Star Map completions stay.",
     resets: ["accretion", "evolution", "atmosphere", "collision", "fusion", "supernova", "kilonova"],
     keep: (layer) => {
@@ -176,6 +202,8 @@ registerLayer({
     },
     onReset: (gain) => {
       player.galaxy.lifeStars = player.galaxy.lifeStars.add(gain);
+      mergerOnStars(gain);
+      if (absorbed("fornax")) player.merger.globulars = player.merger.globulars.add(1); // Fornax Dwarf
       player.galaxy.cycleNeutronium = E(0);
       player.kilonova.resets = startingKilonovae();
       player.supernova.resets = startingSupernovae();
@@ -193,6 +221,8 @@ registerLayer({
       costText: (c) => format(c) + " Dark Matter",
       costStart: 10,
       costGrowth: 3,
+      free: () => draconisLevels(),
+      noSpend: () => hasUpgrade("merger", 3),
       effect: (amount) => Decimal.pow(GALAXY.densityMult, amount),
       effectDisplay: (eff) => formatMult(eff),
     },
@@ -203,6 +233,8 @@ registerLayer({
       costText: (c) => format(c) + " Dark Matter",
       costStart: 50,
       costGrowth: 3.5,
+      free: () => draconisLevels(),
+      noSpend: () => hasUpgrade("merger", 3),
       effect: (amount) => Decimal.pow(2, amount),
       effectDisplay: (eff) => formatMult(eff),
     },
@@ -213,9 +245,21 @@ registerLayer({
       costText: (c) => format(c) + " Dark Matter",
       costStart: 100,
       costGrowth: 4,
+      free: () => draconisLevels(),
+      noSpend: () => hasUpgrade("merger", 3),
       effect: (amount) => Decimal.pow(GALAXY.lensingMult, amount),
       effectDisplay: (eff) => formatMult(eff),
     },
+  },
+
+  // Update 7: the Galaxy layer's own upgrades (bought with Stars, open after your first Merger)
+  upgrades: {
+    1: { title: "Bar Instability", icon: "═", desc: "A bar of stars forms across your centre. Star gain ×(1 + Stellar Arm)^0.1.", cost: E(1e4), currency: "stars", unlocked: () => mergers() > 0, unlockText: "Merge once to unlock." },
+    2: { title: "Galactic Fountain", icon: "⛲", desc: "Supernovae blow gas up out of the disk and it rains back. Dark Matter ×log₁₀(Stars + 10).", cost: E(5e4), currency: "stars", unlocked: () => mergers() > 0, unlockText: "Merge once to unlock." },
+    3: { title: "Disk Settling", icon: "▭", desc: "Your disk calms down after each merger: every arm counts 1.5× its Stars.", cost: E(2e5), currency: "stars", unlocked: () => mergers() > 0, unlockText: "Merge once to unlock." },
+    4: { title: "Spiral Density Wave", icon: "◌", desc: "The arms are waves that sweep around: Galactic Rotation 1.5× faster.", cost: E(1e6), currency: "stars", unlocked: () => mergers() > 1, unlockText: "Merge twice to unlock." },
+    5: { title: "Thick Disk", icon: "▬", desc: "Old stars puff up into a thick disk: EM Spectrum bands make 2× as much.", cost: E(5e6), currency: "stars", unlocked: () => mergers() > 2, unlockText: "Merge 3 times to unlock." },
+    6: { title: "Galactic Habitable Zone", icon: "♁", desc: "Calm regions where stars form steadily: the Starburst requirement ÷(1 + log₁₀ lifetime Stars).", cost: E(2e7), currency: "stars", unlocked: () => mergers() > 3, unlockText: "Merge 4 times to unlock." },
   },
 
   milestoneTitle: "Starburst milestones",
@@ -249,6 +293,19 @@ registerLayer({
 
   tick(dt) {
     player.galaxy.darkMatter = player.galaxy.darkMatter.add(darkMatterRate().mul(dt));
+    // Passive Starbursts (3 Mergers): Stars come in without a reset, and the count goes up 1 per second
+    if (passiveStarbursts() && tmp.galaxy && tmp.galaxy.prestigeGain) {
+      const g = tmp.galaxy.prestigeGain.mul(dt);
+      player.galaxy.lifeStars = player.galaxy.lifeStars.add(g);
+      mergerOnStars(g);
+      galaxyPassiveClock += dt;
+      const n = Math.floor(galaxyPassiveClock);
+      if (n >= 1) {
+        galaxyPassiveClock -= n;
+        player.galaxy.resets += n;
+        if (absorbed("fornax")) player.merger.globulars = player.merger.globulars.add(n);
+      }
+    }
     const f = galaxyForm();
     if (f > player.galaxy.form) {
       player.galaxy.form = f;
@@ -318,11 +375,11 @@ function updateGalaxyPanel(r) {
     setClass(el, "next", i === f + 1);
   });
   const next = GALAXY_FORMS[f + 1];
-  setText(r.formInfo, next ? "Next: " + next[0] + " at " + formatWhole(next[1]) + " lifetime Stars (you have " + formatWhole(player.galaxy.lifeStars) + "). Reward: " + next[2] : "You are a Spiral Galaxy.");
+  setText(r.formInfo, next ? "Next: " + next[0] + " at " + formatWhole(next[1]) + " lifetime Stars (you have " + formatWhole(player.galaxy.lifeStars) + "). Reward: " + next[2] : "You are " + withArticle(galaxyFormName()) + ".");
   setText(r.free, "Unassigned Stars: " + formatWhole(freeStars()) + " of " + formatWhole(player.galaxy.stars) + ". Assign them to arms; you can take them back any time.");
   for (const id of ARM_IDS) {
     setText(r.arms[id].count, formatWhole(armStars(id)) + " Stars");
-    setText(r.arms[id].effect, ARMS[id].text(armStars(id)));
+    setText(r.arms[id].effect, ARMS[id].text(armPower(id)) + (lenticular() ? " (Lenticular: every arm uses all your Stars)" : ""));
     const total = ARM_IDS.reduce((s, k) => s + player.galaxy.split[k], 0) || 1;
     setText(r.arms[id].split, Math.round((player.galaxy.split[id] / total) * 100) + "%");
   }

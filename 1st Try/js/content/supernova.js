@@ -46,7 +46,7 @@ function currentRemnant() {
 
 /** How strong a remnant is: the number of times you have chosen it. */
 function remnantLevel(type) {
-  const extra = player.supernova.remnant === type ? (refined("Ni") ? 1 : 0) + anomalyRemnantLevels() : 0; // Nickel-56 Decay (refinement), Failed Supernova (anomaly)
+  const extra = player.supernova.remnant === type ? (refined("Ni") ? 1 : 0) + anomalyRemnantLevels() + (type === "bh" && smbhPerk(0) ? 2 : 0) : 0; // Nickel-56 Decay (refinement), Failed Supernova (anomaly), Sagittarius A*
   return (player.supernova.chosen[type] || 0) + extra;
 }
 
@@ -76,6 +76,7 @@ function neutroniumMult() {
   if (hasMilestone("evolution", "e26")) m = m.mul(1.5); // Quasi-star
   if (treeHas("b3") && currentRemnant() === "bh") m = m.mul(Math.pow(1 + remnantLevel("bh"), 0.6)); // Relativistic Jets (tree)
   m = m.mul(spectrumEffect("uv")); // Ultraviolet band
+  if (hasUpgrade("merger", 7)) m = m.mul(upgradeEffect("merger", 7)); // Gas-rich Merger
   return m.mul(kilonovaNeutroniumMult()).mul(galaxyNeutroniumMult()); // Updates 4 and 5
 }
 

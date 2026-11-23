@@ -2,8 +2,8 @@
 
 The plan for making the game much longer. Each new era is **longer than the one before**, and scaling stretches the deeper you go.
 
-## Where we are (after Update 6: Depth, simulated greedy player)
-Updates 1–6 are built. The game runs about **20 hours** to Spiral Galaxy, and each era is longer than the one before.
+## Where we are (after Update 7: Local Group, simulated greedy player)
+Updates 1–7 are built. The game runs about **32–34 hours** to Milkomeda, and each era is longer than the one before.
 
 | Milestone | Time (Neutron Star path) |
 |---|---|
@@ -18,7 +18,11 @@ Updates 1–6 are built. The game runs about **20 hours** to Spiral Galaxy, and 
 | First Kilonova | 6h14 |
 | Uranium, 9th Kilonova (end of Update 4) | 11h19 |
 | Irregular Galaxy (Auto Starburst) | 12h50 |
-| **Spiral Galaxy (end of Update 5)** | **20h20** (Black Hole path: 18h22) |
+| Spiral Galaxy (end of Update 5) | 20h20 |
+| First Merger (Segue 1) | 21h10 |
+| Passive Starbursts (3 Mergers) | 22h07 |
+| Triangulum: Lenticular Galaxy | 29h10 |
+| **Andromeda: "Milkomeda" (end of Update 7)** | **33h53** (Black Hole path: 30h28) |
 
 | Era | Length |
 |---|---|
@@ -28,6 +32,7 @@ Updates 1–6 are built. The game runs about **20 hours** to Spiral Galaxy, and 
 | Supernova (to the Kilonova upgrade) | 2h03 |
 | Neutron Capture (to Uranium) | 5h38 |
 | Galaxy (to Spiral Galaxy) | 9h02 |
+| Local Group (to Milkomeda) | 13h34 |
 
 ## Roadmap (each era longer than the last)
 | Update       | Era              | What's new                                                                                                                                                                                                                                                                                          | Target length   |
@@ -39,6 +44,8 @@ Updates 1–6 are built. The game runs about **20 hours** to Spiral Galaxy, and 
 | 5 (done)     | Galaxy           | **Galaxy** (layer 5): you become a star cluster, then a galaxy. Manage star populations, dark matter halo, spiral arms                                                                                                                                                                              | +15 h+          |
 
 | 6 (done)     | Depth            | **8 systems inside the existing tabs** (no new reset layer): Planetary Interior, Planetary System, Stellar Nursery, Element Refinement, Nucleosynthesis Tree, Supernova Anomalies, EM Spectrum, Galactic Rotation. The game grows from ~12h to ~20h. |
+| **7 (built)** | Local Group | **Galactic Merger** (layer 7): absorb real satellite galaxies one Merger at a time (Segue 1 … LMC), then major mergers with Triangulum and Andromeda. Supermassive black hole growth (Sgr A* → TON 618), gravitational-wave observatories, first Galaxy upgrades. Ends as "Milkomeda". ~12h era |
+| 8 (idea)     | Galaxy Cluster   | Milkomeda falls toward the Virgo Cluster; cosmic web; eventually a Big Bang meta-reset |
 
 **Pacing rule for every update:**
 - Each stage takes about 1.3–1.5× as long as the stage before it.
@@ -424,3 +431,103 @@ The user wanted fuller tabs and a longer game **without new reset layers**, with
   - Snowplow no longer starts cycles as a Supergiant.
 
 **Pacing:** see "Where we are" at the top.
+
+
+---
+
+## Update 7 in detail: Local Group (built)
+**Story.** Galaxies grow by merging. The Milky Way is eating its satellite dwarfs right now (the Sagittarius Stream), and in ~4.5 billion years it will collide with Andromeda and become one giant elliptical galaxy ("Milkomeda"). During mergers the central black holes grow and flare as quasars. When two black holes merge they send out gravitational waves.
+
+**Targets.**
+- **Era length:** ~12h, longer than the ~9h Galaxy era, so about 32h in total.
+- **Ending:** Giant Elliptical "Milkomeda". The teaser: *"Milkomeda falls toward the Virgo Cluster…"* (Update 8: Galaxy Cluster).
+
+### Layer 7: Galactic Merger
+- **Unlock:** Spiral Galaxy (8,000 lifetime Stars).
+- **Resets:** the Galaxy layer (Stars, arms, Halo, Dark Matter, Starburst count, Spectrum) and everything below it.
+- **Never reset:** Galactic Years, Anomaly completions, heavy refinements, the s-process ladder, r-process elements, Star Map completions and discoveries.
+- **Currency:** **Tidal Streams** = (Stars earned this cycle ÷ requirement)^0.5, softcapped.
+- **One Merger = one galaxy absorbed.** The requirement is the next satellite's "Stars needed this cycle", so the ladder is the progression and there is no random wall.
+- **About 10 Merger upgrades** (Tidal Streams), for example:
+  - Tidal Tails: Starburst gains ×.
+  - Dynamical Friction: satellites cost less.
+  - Ram-Pressure Stripping: Halo buildings stop spending Dark Matter.
+  - Violent Relaxation: arms auto-balance.
+
+| Mergers | Milestone (gives layer 6 back) |
+|---|---|
+| 1 | Start every cycle with 6 Starbursts; keep Galaxy forms |
+| 2 | Keep Halo levels and the Spectrum |
+| 3 | **Passive Starbursts:** 100% of Stars/s and +1 Starburst/s (no manual Starburst) |
+| 5 | Keep the arm split and Auto Arms; Galactic Rotation ×2 speed |
+| 8 | Auto Merger (waits for a set % of Tidal Streams) |
+
+### System: Satellite Galaxies (the merger ladder)
+| # | Galaxy | Real fact | Effect when absorbed |
+|---|---|---|---|
+| 1 | Segue 1 | the faintest galaxy known, almost all dark matter | Dark Matter is kept on Merger |
+| 2 | Draco Dwarf | dark-matter dominated | Halo buildings get free levels from Galactic Years |
+| 3 | Ursa Minor Dwarf | one of the oldest galaxies, metal-poor stars | Population III anomaly goes to 15 completions |
+| 4 | Sculptor Dwarf | the first dwarf spheroidal found (1937) | Spectrum bands double every 8 bought instead of 10 |
+| 5 | Fornax Dwarf | has 6 globular clusters | Starbursts also give Globular Clusters (they boost Free Neutrons) |
+| 6 | Leo I | fast and far away | Auto Merger's wait setting |
+| 7 | Sagittarius Dwarf | being torn apart now: the Sagittarius Stream | Tidal Streams ×2 |
+| 8 | Small Magellanic Cloud | metal-poor and star-forming | Nursery and Planetary System survive Mergers |
+| 9 | Large Magellanic Cloud | ~10% of the Milky Way's mass | Galactic Rotation ×2; a new Year perk at 60 |
+| 10 | **Triangulum (M33)**, major merger | the third-largest member | **Lenticular Galaxy:** all three arm effects use all your Stars |
+| 11 | M32 and NGC 205 | Andromeda's satellites | Black hole growth ×2 |
+| 12 | **Andromeda (M31)**, major merger | about twice our size | **Giant Elliptical "Milkomeda"**: end of Update 7 |
+
+### System: Supermassive Black Hole (Sagittarius A* → quasar)
+- **Start:** unlocks at the 1st Merger, at 4 million M☉ (Sgr A*).
+- **Growth:** Eddington-limited, so mass grows exponentially (Salpeter time).
+- **Cap:** mass is held to a share of the galaxy's mass (the M–σ relation), and each Merger raises the cap. It grows in bursts and never runs away.
+
+| Mass (M☉) | Name | Perk |
+|---|---|---|
+| 4e6 | Sagittarius A* | Black Hole remnant +2 levels |
+| 1e7 | Seyfert nucleus | X-ray and Gamma bands ×3 |
+| 1e8 | Radio galaxy | relativistic jets: Starburst requirement ÷10 |
+| 1e9 | Quasar | Tidal Streams ×2; star formation quenched for 2 min after each Merger |
+| 6.5e9 | M87* (first black-hole image) | Auto Starburst gets a timer mode |
+| 6.6e10 | TON 618 | Kilonova requirement ÷100 |
+
+### System: Gravitational-Wave Observatories
+GW signals come from every black-hole merger during a Merger, and a few come from each Kilonova (real: GW170817 was a kilonova). Each observatory is a one-time build.
+
+| Observatory | What it does |
+|---|---|
+| LIGO | offline progress also performs Auto Mergers |
+| Virgo | Merger milestones count one Merger higher |
+| KAGRA | Kilonovae give 3× GW signals |
+| Pulsar Timing Array | (needs a Neutron Star once) Neutron Star levels boost Tidal Streams |
+| LISA (space) | every black-hole perk threshold ÷10 |
+
+### Galaxy layer expansion
+The Galaxy layer gets its first **6 upgrades** (bought with Stars), priced for this era. Examples: Bar Instability, Galactic Fountain, Disk Settling.
+
+### Forms, art and UI
+- **Forms:** Barred Spiral (1st Merger), Lenticular (Triangulum), Elliptical (8 satellites), Giant Elliptical "Milkomeda" (Andromeda).
+- **Art:**
+  - the four forms
+  - an interacting pair with tidal tails (merger modal)
+  - a quasar with jets
+  - a Local Group map where satellites fade as you absorb them
+- **UI:**
+  - a new big tab **Local Group** (teal) with sub-tabs Merger, Satellites, Black Hole and Observatories
+  - a Merger header chip and the new-layer modal
+  - achievement row 8 "Local Group"
+
+### Pacing target
+| Milestone | Time |
+|---|---|
+| First Merger | ~20h30 |
+| Satellites 1–9 | every 30–50 min, each a bit longer than the last |
+| Triangulum | ~27h |
+| Andromeda, end of Update 7 | ~32h |
+
+### Implementation notes
+- **Layer:** `js/content/merger.js` (layer `merger`).
+- **Systems,** hosted in that layer through `registerSystem`: `satellites.js`, `smbh.js`, `observatories.js`.
+- **Hooks:** `galaxy.js` (passive Starbursts, keeps, upgrades), `spectrum.js`, `kilonova.js` (GW signals), `supernova.js`.
+- **Also:** a tab group in `tabs.js`, a header chip and intro in `game.js`, new pictures in `art.js`, achievement row 8, and `merger` in the stats.

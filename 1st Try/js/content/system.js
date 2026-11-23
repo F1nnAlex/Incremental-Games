@@ -95,9 +95,9 @@ registerSystem({
   unlockText: "The leftover disk around your star starts forming planets. New: Planetary System (Star tab).",
   startData: () => Object.fromEntries(ORBITS.map((_, i) => ["o" + i, E(0)])),
   // Full System: the 3 biggest planets survive a Supernova
-  keep: (resetting) => (resetting === "supernova" && (hasSystemBadge(3) || treeHas("x7"))) || (resetting === "galaxy" && hasYearPerk(5)),
+  keep: (resetting) => (resetting === "supernova" && (hasSystemBadge(3) || treeHas("x7"))) || (resetting === "galaxy" && hasYearPerk(5)) || (resetting === "merger" && absorbed("smc")),
   afterKeep: (s, resetting) => {
-    if (treeHas("x7") || resetting === "galaxy") return; // Radiative Cooling (tree) / 5 Galactic Years: everything survives
+    if (treeHas("x7") || resetting === "galaxy" || resetting === "merger") return; // Radiative Cooling (tree) / 5 Galactic Years: everything survives
     const order = ORBITS.map((_, i) => i).sort((a, b) => (s["o" + b].gt(s["o" + a]) ? 1 : -1));
     for (const i of order.slice(3)) s["o" + i] = E(0);
   },
