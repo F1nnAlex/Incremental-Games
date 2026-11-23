@@ -15,7 +15,7 @@ const KILONOVA = {
   neutronPow: 0.5, // Free Neutrons per second = (lifetime Neutronium)^this × boosts
   rarePity: 6, // the 6th drop in a row without a Rare (or better) is Rare
   legendaryPity: 20, // the 20th drop in a row without a Legendary is Legendary
-  uraniumAt: 9, // your 9th Kilonova always forges Uranium (the end of Update 4); before that, Legendaries level up Thorium
+  uraniumAt: 9, // your 9th Kilonova always forges Uranium (which opens the Galaxy); before that, Legendaries level up Thorium
 };
 
 // ---------- s-process ladder ----------
@@ -79,7 +79,7 @@ const RARITIES = {
   common: { name: "Common", chance: 0.6, color: "#9fb4d6", set: "Neutronium gain ×2" },
   uncommon: { name: "Uncommon", chance: 0.28, color: "#4ade9a", set: "All fusion ×10" },
   rare: { name: "Rare", chance: 0.1, color: "#60a5fa", set: "Every Kilonova drops 1 more element" },
-  legendary: { name: "Legendary", chance: 0.02, color: "#fbbf24", set: "The end of Update 4" },
+  legendary: { name: "Legendary", chance: 0.02, color: "#fbbf24", set: "Your remnants gather into a cluster: the Galaxy opens" },
 };
 // [symbol, atomic number, name, rarity, effect text for level L]
 const R_ELEMENTS = [
@@ -96,7 +96,7 @@ const R_ELEMENTS = [
   ["Hg", 80, "Mercury", "rare", (L) => "Free Neutrons ×" + formatWhole((L + 1) * (L + 1))],
   ["Pb", 82, "Lead", "rare", (L) => "s-process steps ÷" + formatWhole(L + 1) + " cheaper"],
   ["Th", 90, "Thorium", "legendary", (L) => "Neutronium gain ×" + formatWhole(Math.pow(3, L))],
-  ["U", 92, "Uranium", "legendary", () => "The heaviest natural element. End of Update 4."],
+  ["U", 92, "Uranium", "legendary", () => "The heaviest natural element. Forging it opens the Galaxy."],
 ];
 const R_BY_SYM = Object.fromEntries(R_ELEMENTS.map((e) => [e[0], e]));
 
@@ -277,7 +277,7 @@ registerLayer({
       }
       const got = [];
       for (let i = 0; i < gain.toNumber(); i++) got.push(rollDrop());
-      // your uraniumAt-th Kilonova always forges Uranium (the end of Update 4), so the goal never depends on luck
+      // your uraniumAt-th Kilonova always forges Uranium (which opens the Galaxy), so the goal never depends on luck
       if (rElemLevel("U") === 0 && player.kilonova.resets >= uraniumAt()) {
         player.kilonova.r.U = 1;
         discover("U", true);
@@ -317,7 +317,7 @@ registerLayer({
   tick(dt) {
     if (rElemLevel("U") > 0 && !player.kilonova.ended) {
       player.kilonova.ended = true;
-      notify("URANIUM! You have forged the heaviest natural element. That is the end of Update 4. Your remnants are starting to gather into a cluster... (to be continued: Galaxy)");
+      notify("URANIUM! You have forged the heaviest natural element. Your remnants start to gather into a cluster: the Galaxy is unlocked.");
     }
   },
 

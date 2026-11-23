@@ -982,3 +982,11 @@ body.no-anim .art, body.no-anim .art * { animation: none !important; }
 .lg-map svg { display: block; }
 .smbh-art svg { display: block; }
 .milestone.major .milestone-req { color: #5eead4; }
+/* Achievement tooltip (hover, focus or tap) */
+.ach-tile { cursor: help; }
+.ach-tile:focus-visible { outline: 2px solid var(--row, var(--accent)); outline-offset: 2px; }
+.ach-tip { position: fixed; z-index: 50; width: max-content; max-width: min(240px, calc(100vw - 16px)); padding: 8px 11px; background: #0c1226; border: 1px solid var(--border); border-left: 3px solid var(--row, var(--accent)); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5); pointer-events: none; }
+.ach-tip-name { font-family: var(--font-ui); font-weight: 600; color: var(--row, var(--text)); }
+.ach-tip-desc { margin-top: 2px; font-size: 0.9rem; color: var(--text); }
+.ach-tip-state { margin-top: 4px; font-size: 0.8rem; color: var(--muted); }
+.ach-tip-state.done { color: var(--good); }

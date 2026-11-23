@@ -3,7 +3,7 @@
 //   - Starburst (reset): resets the Kilonova layer and everything below, gives Stars.
 //   - Spiral arms: assign Stars to three arms, each boosting a different part of the game.
 //   - Dark matter halo: Stars pull in Dark Matter, spent on repeatable halo buildings.
-//   - Galaxy forms: lifetime Stars grow you from a Star Cluster into a Spiral Galaxy (the end of Update 5).
+//   - Galaxy forms: lifetime Stars grow you from a Star Cluster into a Spiral Galaxy (which opens the Local Group).
 
 // Balance knobs
 const GALAXY = {

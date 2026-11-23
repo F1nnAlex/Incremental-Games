@@ -226,7 +226,7 @@ function completeRegion(id) {
   // Every region done: carbon burning starts, Neon can be fused
   if (totalCompletions() >= MAX_COMPLETIONS && !isDiscovered("Ne")) {
     discover("Ne");
-    notify("Every region is mapped! Your core starts carbon burning. Deep inside, it is getting unstable... (to be continued: Supernova)");
+    notify("Every region is mapped! Your core starts carbon burning, all the way to Iron. With enough Iron it collapses: Supernova.");
   }
 }
 

@@ -137,11 +137,52 @@ function achStreamMult() {
 function buildAchievementsTab(panel) {
   const head = h("div", { class: "layer-header" });
   const info = h("p", { class: "ach-info" }, "Every achievement gives mass gain ×1.02. Finish a whole row for a bigger bonus.");
+  // One shared tooltip: shows the requirement on hover, keyboard focus or tap
+  const tipName = h("div", { class: "ach-tip-name" });
+  const tipDesc = h("div", { class: "ach-tip-desc" });
+  const tipState = h("div", { class: "ach-tip-state" });
+  const oldTip = document.getElementById("achTip");
+  if (oldTip) oldTip.remove(); // the tabs were rebuilt (e.g. after loading a save)
+  const tip = h("div", { class: "ach-tip", id: "achTip", role: "tooltip" }, tipName, tipDesc, tipState);
+  tip.hidden = true;
+  document.body.append(tip);
+  let tipFor = null;
+  const showTip = (tile, id, name, desc, rowColor) => {
+    tipFor = tile;
+    setText(tipName, name);
+    setText(tipDesc, desc);
+    const done = hasAch(id);
+    setText(tipState, done ? "✓ Unlocked" : "Not unlocked yet");
+    setClass(tipState, "done", done);
+    tip.style.setProperty("--row", rowColor);
+    tip.hidden = false;
+    // place it above the tile (below if there is no room), kept inside the window
+    const r = tile.getBoundingClientRect();
+    const w = tip.offsetWidth;
+    const hgt = tip.offsetHeight;
+    const left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+    const top = r.top - hgt - 8 >= 8 ? r.top - hgt - 8 : r.bottom + 8;
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+  };
+  const hideTip = (tile) => {
+    if (tile && tile !== tipFor) return;
+    tipFor = null;
+    tip.hidden = true;
+  };
+  window.addEventListener("scroll", () => hideTip(), true);
+
   const rows = ACH_ROWS.map((row, r) => {
     const tiles = ACHIEVEMENTS.slice(r * 8, r * 8 + 8).map(([id, name, desc]) => {
-      const tile = h("div", { class: "ach-tile", title: name + ": " + desc, tabindex: "0" },
+      const tile = h("div", { class: "ach-tile", tabindex: "0", "aria-label": name + ": " + desc, "aria-describedby": "achTip" },
         h("div", { class: "ach-art", html: typeof achArt === "function" ? achArt(id) : "" }),
         h("div", { class: "ach-name" }, name));
+      const show = () => showTip(tile, id, name, desc, row.color);
+      tile.addEventListener("mouseenter", show);
+      tile.addEventListener("focus", show);
+      tile.addEventListener("mouseleave", () => hideTip(tile));
+      tile.addEventListener("blur", () => hideTip(tile));
+      tile.addEventListener("click", () => (tipFor === tile ? hideTip(tile) : show())); // tap on phones
       return { id, tile };
     });
     const reward = h("div", { class: "ach-reward" });
@@ -152,6 +193,8 @@ function buildAchievementsTab(panel) {
   });
   panel.append(h("h2", {}, "Achievements"), head, info, ...rows.map((x) => x.el));
   return () => {
+    if (tipFor && !document.body.contains(tipFor)) hideTip();
+    if (tipFor && tipFor.offsetParent === null) hideTip(); // the tab was closed
     setText(head, player.achievements.length + " / " + ACHIEVEMENTS.length + " achievements. Mass gain " + formatMult(achMassMult()) + ".");
     for (const row of rows) {
       for (const t of row.tiles) setClass(t.tile, "done", hasAch(t.id));

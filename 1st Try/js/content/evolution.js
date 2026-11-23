@@ -171,7 +171,7 @@ function buildEvolutionViewer(panel) {
     const pct = (p * 100).toFixed(1) + "%";
     if (fill.style.width !== pct) fill.style.width = pct;
     bar.setAttribute("aria-valuenow", (p * 100).toFixed(0));
-    setText(barLabel, n >= maxStage() ? "Fully evolved for now. Something big is coming." : pct + " of the way to " + STAGES[n + 1].name + " (" + stageRequirementText(n + 1) + ")");
+    setText(barLabel, n >= maxStage() ? (maxStage() >= MAX_STAGE ? "Fully evolved: this is the biggest form there is." : "Fully evolved for now. A new reset layer will unlock bigger forms.") : pct + " of the way to " + STAGES[n + 1].name + " (" + stageRequirementText(n + 1) + ")");
     const top = maxStage();
     for (const c of pathCells) {
       const visible = c.i <= top;
@@ -226,11 +226,11 @@ registerLayer({
     canBuyMax: () => hasMilestone("collision", "c7"),
     resets: [],
     buttonText: () => {
-      if (evo() >= maxStage()) return "Fully evolved (for now)";
+      if (evo() >= maxStage()) return maxStage() >= MAX_STAGE ? "Fully evolved" : "Fully evolved (for now)";
       const next = STAGES[evo() + 1].name;
       return tmp.evolution.canPrestige ? "Evolve into " + withArticle(next) + "!" : "Next form: " + next;
     },
-    infoText: () => (evo() >= maxStage() ? "Something big is coming…" : "Requires " + stageRequirementText(evo() + 1)),
+    infoText: () => (evo() >= maxStage() ? (maxStage() >= MAX_STAGE ? "This is the biggest form there is." : "A new reset layer will unlock bigger forms.") : "Requires " + stageRequirementText(evo() + 1)),
     onReset: () => {
       notify("You evolved into " + withArticle(stageName()) + "!");
       interiorOnEvolve(); // Auroras field perk

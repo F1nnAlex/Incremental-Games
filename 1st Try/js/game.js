@@ -68,7 +68,7 @@ function buildHeader() {
     const p = evolutionProgress();
     const pct = (p * 100).toFixed(1) + "%";
     if (fill.style.width !== pct) fill.style.width = pct;
-    setText(label, n >= maxStage() ? "Fully evolved for now" : "Next: " + STAGES[n + 1].name + " · " + pct);
+    setText(label, n >= maxStage() ? (maxStage() >= MAX_STAGE ? "Fully evolved" : "Fully evolved for now") : "Next: " + STAGES[n + 1].name + " · " + pct);
     label.title = n >= maxStage() ? "" : stageRequirementText(n + 1);
     const can = !!tmp.evolution.canPrestige;
     setText(btn, n >= maxStage() ? "Max" : can ? "Evolve!" : "Evolve");
