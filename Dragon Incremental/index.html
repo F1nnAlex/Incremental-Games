@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=3">
 </head>
 <body>
   <header class="topbar">
@@ -37,30 +37,31 @@
   <div id="notifications" class="notifications" aria-live="polite"></div>
   <div id="modalRoot"></div>
 
+  <!-- ?v=N on every local file: bump it on each release so browsers never mix cached old scripts with new ones -->
   <!-- Big numbers -->
-  <script src="lib/break_eternity.js"></script>
+  <script src="lib/break_eternity.js?v=3"></script>
 
   <!-- Engine (copied from Speck) -->
-  <script src="js/core/decimal.js"></script>
-  <script src="js/core/format.js"></script>
-  <script src="js/core/scaling.js"></script>
-  <script src="js/core/layers.js"></script>
-  <script src="js/core/automation.js"></script>
-  <script src="js/core/player.js"></script>
-  <script src="js/core/save.js"></script>
-  <script src="js/core/ui.js"></script>
-  <script src="js/core/tabs.js"></script>
-  <script src="js/core/hotkeys.js"></script>
-  <script src="js/core/loop.js"></script>
+  <script src="js/core/decimal.js?v=3"></script>
+  <script src="js/core/format.js?v=3"></script>
+  <script src="js/core/scaling.js?v=3"></script>
+  <script src="js/core/layers.js?v=3"></script>
+  <script src="js/core/automation.js?v=3"></script>
+  <script src="js/core/player.js?v=3"></script>
+  <script src="js/core/save.js?v=3"></script>
+  <script src="js/core/ui.js?v=3"></script>
+  <script src="js/core/tabs.js?v=3"></script>
+  <script src="js/core/hotkeys.js?v=3"></script>
+  <script src="js/core/loop.js?v=3"></script>
 
   <!-- Content, in layer order -->
-  <script src="js/content/forage.js"></script>
-  <script src="js/content/youngling.js"></script>
-  <script src="js/content/achievements.js"></script>
+  <script src="js/content/forage.js?v=3"></script>
+  <script src="js/content/youngling.js?v=3"></script>
+  <script src="js/content/achievements.js?v=3"></script>
 
   <!-- Stage -->
-  <script src="js/art/stage.js"></script>
+  <script src="js/art/stage.js?v=3"></script>
 
-  <script src="js/game.js"></script>
+  <script src="js/game.js?v=3"></script>
 </body>
 </html>
