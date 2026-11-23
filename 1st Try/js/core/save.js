@@ -1,27 +1,12 @@
 // Saving, loading, export/import and save-format migrations.
 
-const SAVE_KEY = "speck_save";
+const SAVE_KEY = "speck_save_v4"; // the overhaul started fresh: older saves ("speck_save") are not loaded
 const AUTOSAVE_SECONDS = 30;
 
 // Migrations: MIGRATIONS[n] upgrades a raw (parsed) save from version n-1 to n.
-// Example for later:
-//   2: (s) => { s.main.oldName = s.main.newName; delete s.main.oldName; },
-const MIGRATIONS = {
-  // v2: the Periodic Table was trimmed to H, He, C, N and O (heavier elements come in later updates)
-  2: (s) => {
-    const keep = ["H", "He", "C", "N", "O"];
-    if (s.fusion) {
-      if (Array.isArray(s.fusion.discovered)) s.fusion.discovered = s.fusion.discovered.filter((x) => keep.includes(x));
-      // drop removed elements and their Shells (some, like Iron, came back later with new rules)
-      if (s.fusion.elements) for (const k in s.fusion.elements) if (!keep.includes(k)) delete s.fusion.elements[k];
-      if (s.fusion.buyables) for (const k in s.fusion.buyables) if (k.startsWith("shell") && !keep.includes(k.slice(5))) delete s.fusion.buyables[k];
-    }
-  },
-  // v3: "Scientific" now means every number in scientific notation; the old "scientific" look is "Mixed"
-  3: (s) => {
-    if (s.options && s.options.notation === "scientific") s.options.notation = "mixed";
-  },
-};
+// The overhaul (v4) started fresh with a new save key, so there are none yet.
+//   Example: 5: (s) => { s.main.newName = s.main.oldName; delete s.main.oldName; },
+const MIGRATIONS = {};
 
 function encodeSave(obj) {
   const json = JSON.stringify(obj); // Decimals serialize to strings via toJSON()

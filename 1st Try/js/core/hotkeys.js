@@ -4,6 +4,8 @@ const HOTKEYS = [
   { key: "s", ctrl: true, label: "Ctrl+S", desc: "Save the game", fn: () => saveGame() },
   { key: "m", label: "M", desc: "Buy max of everything in the current tab", fn: buyMaxCurrentTab },
   { key: "1-9", label: "1–9", desc: "Switch tabs", fn: null }, // handled specially below
+  { key: "q", label: "Q", desc: "Previous sub-tab", fn: () => cycleSubtab(-1) },
+  { key: "w", label: "W", desc: "Next sub-tab", fn: () => cycleSubtab(1) },
 ];
 
 function addHotkey(entry) {
@@ -11,7 +13,9 @@ function addHotkey(entry) {
 }
 
 function buyMaxCurrentTab() {
-  const def = LAYERS[player.tab];
+  const t = TABS.find((x) => x.id === player.tab);
+  const sub = t && t.subs ? t.subs.find((s) => s.id === player.subtabs[t.id]) : null;
+  const def = LAYERS[sub && sub.layer ? sub.layer : player.tab];
   if (!def || !tmp[def.id].unlocked) return;
   for (const key in def.buyables) buyMaxBuyable(def.id, key);
 }

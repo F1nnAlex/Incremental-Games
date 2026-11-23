@@ -13,7 +13,6 @@ function collisions() {
 
 /** Where a new life starts, depending on milestones: [stage, mass in kg]. */
 function collisionStart() {
-  if (hasMilestone("fusion", "w11") && !currentRegion()) return [PLANET_STAGE, STAGES[PLANET_STAGE].mass]; // Planet (not in a Star Map region)
   if (hasMilestone("collision", "c11")) return [5, STAGES[5].mass]; // Boulder
   if (hasMilestone("collision", "c7")) return [3, STAGES[3].mass]; // Pebble
   if (hasMilestone("collision", "c5")) return [2, STAGES[2].mass]; // Sand Grain
@@ -57,10 +56,10 @@ registerLayer({
       if (evo() < 6) return E(0);
       return player.accretion.mass.div(COLLISION_MASS).pow(0.25).mul(shardMult()).floor();
     },
-    canReset: () => evo() >= 6 && tmp.collision.prestigeGain.gte(1),
+    canReset: () => !passiveCollisions() && evo() >= 6 && tmp.collision.prestigeGain.gte(1),
     requirementText: () => "Become a Planetesimal (" + formatMass(COLLISION_MASS) + ") to collide",
     buttonText: () =>
-      tmp.collision.canPrestige
+      passiveCollisions() ? "Collisions happen on their own" : tmp.collision.canPrestige
         ? "Collide for +" + formatWhole(tmp.collision.prestigeGain) + " Shards"
         : "Collide",
     resets: ["accretion", "evolution", "atmosphere"],
@@ -69,9 +68,10 @@ registerLayer({
       const keep = [];
       if (hasMilestone("collision", "c1")) keep.push("upgrades");
       if (hasMilestone("collision", "c12")) keep.push("buyables.gravity");
+      if (hasFieldPerk(1)) keep.push("buyables.cohesion"); // Magnetosphere
       return keep;
     },
-    passive: () => (hasUpgrade("collision", 11) ? 0.5 : hasUpgrade("collision", 6) ? 0.1 : 0),
+    passive: () => (passiveCollisions() ? 1 : hasUpgrade("collision", 6) ? 0.1 : hasFieldPerk(0) ? 0.01 : 0), // Debris Disk, or the Dynamo field perk
     onReset: () => {
       const [stage, mass] = collisionStart();
       player.evolution.stage = E(stage);
@@ -83,9 +83,9 @@ registerLayer({
     1: {
       title: "Shrapnel",
       icon: "✦",
-      desc: "Shards boost mass gain.",
+      desc: "Shards boost mass gain (Shards spent on the Interior still count).",
       cost: E(1),
-      effect: () => softcap(player.collision.shards.add(1).pow(0.4), shrapnelSoftcapStart(), 0.3),
+      effect: () => softcap(shardsOwned().add(1).pow(0.4), shrapnelSoftcapStart(), 0.3),
       effectDisplay: (eff) => formatMult(eff) + (eff.gt(shrapnelSoftcapStart()) ? " (softcapped)" : ""),
     },
     2: {
@@ -93,7 +93,7 @@ registerLayer({
       icon: "⚡",
       desc: "Every collision charges you up. Static Charge ×√(collisions + 1).",
       cost: E(3),
-      effect: () => E(collisions() + 1).sqrt(),
+      effect: () => E(Math.min(collisions(), 100) + 1).sqrt(), // capped: collisions can count up forever once passive
       effectDisplay: (eff) => formatMult(eff),
     },
     3: {
@@ -122,7 +122,7 @@ registerLayer({
       icon: "♨",
       desc: "Every impact heats your core. Core temperature ×(1 + log₁₀ Shards ÷ 20).",
       cost: E(1e13),
-      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlocked: () => evo() >= SUPERGIANT_STAGE || supernovae() > 0,
       unlockText: "Become a Supergiant to unlock.",
       effect: () => player.collision.shards.add(1).log10().div(20).add(1),
       effectDisplay: (eff) => formatMult(eff),
@@ -132,15 +132,17 @@ registerLayer({
       icon: "⁂",
       desc: "Shards shatter nuclei. Lithium, Beryllium and Boron effects ×2.",
       cost: E(1e17),
-      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlocked: () => evo() >= SUPERGIANT_STAGE || supernovae() > 0,
       unlockText: "Become a Supergiant to unlock.",
     },
     11: {
-      title: "Debris Halo",
+      title: "Impact Crater",
       icon: "◌",
-      desc: "A halo of debris rains down on you. Debris Disk gives 50% of your Shard gain every second instead of 10%.",
+      desc: "Huge impacts dig deep. Shard gain ×log₁₀(total Stardust).",
+      effect: () => totalStardust().max(10).log10(),
+      effectDisplay: (eff) => formatMult(eff),
       cost: E(1e19),
-      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlocked: () => evo() >= SUPERGIANT_STAGE || supernovae() > 0,
       unlockText: "Become a Supergiant to unlock.",
     },
     12: {
@@ -168,20 +170,24 @@ registerLayer({
   milestones: {
     c1: { req: () => collisions() >= 1, reqText: "1 collision", desc: "Keep Accretion upgrades when you collide." },
     c2: { req: () => collisions() >= 2, reqText: "2 collisions", desc: "Unlock Auto Static Charge." },
-    c3: { req: () => collisions() >= 3, reqText: "3 collisions", desc: "Unlock Auto Evolve." },
-    c4: { req: () => collisions() >= 4, reqText: "4 collisions", desc: "Unlock Auto Cohesion." },
-    c5: { req: () => collisions() >= 5, reqText: "5 collisions", desc: "Start every life as a Sand Grain." },
+    c3: { req: () => collisions() >= 2, reqText: "2 collisions", desc: "Unlock Auto Evolve (up to Planet)." },
+    c4: { req: () => collisions() >= 3, reqText: "3 collisions", desc: "Unlock Auto Cohesion." },
+    c5: { req: () => collisions() >= 4, reqText: "4 collisions", desc: "Start every life as a Sand Grain." },
     c6: {
-      req: () => collisions() >= 6,
-      reqText: "6 collisions",
-      desc: () => "Every collision makes you stronger: mass gain ×(collisions + 1)^0.25. Currently " + formatMult(collisionExperience()) + ".",
+      req: () => collisions() >= 5,
+      reqText: "5 collisions",
+      desc: () => "Every collision makes you stronger: mass gain ×(collisions + 1)^0.25 (counts up to 100). Currently " + formatMult(collisionExperience()) + ".",
     },
-    c7: { req: () => collisions() >= 8, reqText: "8 collisions", desc: "Start every life as a Pebble. Evolve through several forms at once." },
-    c8: { req: () => collisions() >= 10, reqText: "10 collisions", desc: "Unlock Auto Gravity Well and Auto Upgrades. Accretion buildings no longer spend mass." },
-    c9: { req: () => collisions() >= 12, reqText: "12 collisions", desc: "Unlock Auto Collide. It collides whenever that would at least double your Shards, but never once you are a Planet or bigger." },
-    c10: { req: () => collisions() >= 15, reqText: "15 collisions", desc: "Shrapnel's softcap starts at ×1,000 instead of ×100." },
-    c11: { req: () => collisions() >= 20, reqText: "20 collisions", desc: "Start every life as a Boulder." },
-    c12: { req: () => collisions() >= 25, reqText: "25 collisions", desc: "Keep Gravity Well levels when you collide." },
+    c8: { req: () => collisions() >= 6, reqText: "6 collisions", desc: "Unlock Auto Gravity Well and Auto Accretion Upgrades. Accretion buildings no longer spend mass." },
+    c7: { req: () => collisions() >= 7, reqText: "7 collisions", desc: "Start every life as a Pebble. Evolve through several forms at once." },
+    c9: { req: () => collisions() >= 8, reqText: "8 collisions", desc: "Unlock Auto Collide: it collides whenever that would at least double your Shards, while you are smaller than a Planet." },
+    c10: { req: () => collisions() >= 10, reqText: "10 collisions", desc: "Shrapnel's softcap starts at ×1,000 instead of ×100." },
+    c11: { req: () => collisions() >= 12, reqText: "12 collisions", desc: "Start every life as a Boulder." },
+    c12: { req: () => collisions() >= 15, reqText: "15 collisions", desc: "Keep Gravity Well levels when you collide." },
+  },
+
+  tick(dt) {
+    tickPassiveResets(dt); // passive Collisions (3 winds) and Stellar Winds (1st Kilonova)
   },
 
   automation: {
@@ -193,16 +199,21 @@ registerLayer({
     },
     collide: {
       name: "Auto Collide",
-      unlocked: () => hasMilestone("collision", "c9"),
+      unlocked: () => hasMilestone("collision", "c9") && !passiveCollisions(),
       run: () => {
         // Past Planet, colliding would throw away your gas-giant and star progress, so it waits
         if (evo() >= PLANET_STAGE) return;
         updateTemp();
-        if (tmp.collision.canPrestige && tmp.collision.prestigeGain.gte(player.collision.shards.max(1))) doPrestige("collision");
+        if (tmp.collision.canPrestige && tmp.collision.prestigeGain.gte(shardsOwned().max(1))) doPrestige("collision");
       },
     },
   },
 });
+
+/** Shards you hold plus Shards spent on the Interior (spending them never makes you weaker). */
+function shardsOwned() {
+  return player.collision.shards.add(player.collision.interior.spent);
+}
 
 /** Shrapnel is softcapped above this multiplier (15 collisions raises it). */
 function shrapnelSoftcapStart() {
@@ -227,11 +238,13 @@ function shardMult() {
   if (ruleActive("stream")) return E(0);
   m = m.mul(E(rewardLevel("stream") + 1).pow(1.5));
   if (hasUpgrade("supernova", 4)) m = m.mul(1000); // Light Echo
+  if (hasUpgrade("collision", 11)) m = m.mul(upgradeEffect("collision", 11)); // Impact Crater
   m = m.mul(kilonovaShardMult()); // Tellurium
+  m = m.mul(achShardMult()); // achievements (Worlds row)
   return m.mul(fusionShardMult());
 }
 
 /** Milestone c6: mass gain ×(collisions + 1)^0.25. */
 function collisionExperience() {
-  return hasMilestone("collision", "c6") ? E(collisions() + 1).pow(0.25) : E(1);
+  return hasMilestone("collision", "c6") ? E(Math.min(collisions(), 100) + 1).pow(0.25) : E(1);
 }

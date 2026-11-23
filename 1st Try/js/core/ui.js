@@ -6,6 +6,7 @@ function h(tag, attrs = {}, ...children) {
   for (const [k, v] of Object.entries(attrs || {})) {
     if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
     else if (k === "class") el.className = v;
+    else if (k === "html") el.innerHTML = v;
     else el.setAttribute(k, v);
   }
   for (const c of children.flat()) {
@@ -35,6 +36,8 @@ function notify(message, type = "info") {
   if (!root) return console.log(message);
   const el = h("div", { class: "toast toast-" + type }, message);
   root.append(el);
+  // never pile up: keep the newest 4
+  while (root.children.length > 4) root.firstElementChild.remove();
   setTimeout(() => el.classList.add("fade"), 2500);
   setTimeout(() => el.remove(), 3000);
 }
@@ -45,7 +48,7 @@ function notify(message, type = "info") {
  * showModal({ title, text, list, textarea, buttons: [{ label, action(textValue), danger }] })
  * A button without an action just closes the modal.
  */
-function showModal({ title, text, list, textarea, buttons = [{ label: "OK" }] }) {
+function showModal({ title, text, list, textarea, art, buttons = [{ label: "OK" }] }) {
   closeModal();
   const root = document.getElementById("modalRoot");
   let area = null;
@@ -56,6 +59,7 @@ function showModal({ title, text, list, textarea, buttons = [{ label: "OK" }] })
   const box = h(
     "div",
     { class: "modal", role: "dialog" },
+    art ? h("div", { class: "modal-art", html: art }) : null,
     h("h2", {}, title),
     text ? h("p", {}, text) : null,
     list ? h("ul", {}, list.map((l) => h("li", {}, l))) : null,
@@ -132,8 +136,13 @@ function buildLayerTab(def, outer) {
   };
 }
 
-/** The standard layer content: header, reset button, automation, buyables, milestones. */
-function buildLayerContent(def, container) {
+/**
+ * The standard layer content: header, reset button, automation, buyables, milestones, extra panel.
+ * opts can hide parts ({ prestige: false, buyables: false, milestones: false, extra: false }) and
+ * limit the automation toggles shown here (autoKeys: [...]), so one layer can fill several sub-tabs.
+ */
+function buildLayerContent(def, container, opts = {}) {
+  const show = (part) => opts[part] !== false;
   const id = def.id;
   const cur = def.currencyName || def.currency;
   const isRank = !!(def.prestige && def.prestige.type === "rank");
@@ -153,14 +162,14 @@ function buildLayerContent(def, container) {
   }
 
   // Prestige / rank-up button
-  if (def.prestige) {
+  if (def.prestige && show("prestige")) {
     refs.prestige = h("button", { class: "prestige-btn", onclick: () => requestPrestige(id) });
     refs.prestigeInfo = h("div", { class: "prestige-info" });
     container.append(h("div", { class: "prestige-box" }, refs.prestige, refs.prestigeInfo));
   }
 
   // Automation toggles
-  const aKeys = Object.keys(def.automation).filter((k) => !def.automation[k].buyable && !def.automation[k].upgrades);
+  const aKeys = Object.keys(def.automation).filter((k) => !def.automation[k].buyable && !def.automation[k].upgrades && !def.automation[k].system && (!opts.autoKeys || opts.autoKeys.includes(k)));
   if (aKeys.length) {
     refs.autoBox = h("div", { class: "auto-box" });
     for (const key of aKeys) {
@@ -172,7 +181,7 @@ function buildLayerContent(def, container) {
   }
 
   // Buyables
-  const bKeys = Object.keys(def.buyables);
+  const bKeys = show("buyables") ? Object.keys(def.buyables) : [];
   if (bKeys.length) {
     const grid = h("div", { class: "grid" });
     for (const key of bKeys) {
@@ -194,7 +203,7 @@ function buildLayerContent(def, container) {
   }
 
   // Milestones / rank rewards
-  const mKeys = Object.keys(def.milestones);
+  const mKeys = show("milestones") ? Object.keys(def.milestones) : [];
   if (mKeys.length) {
     container.append(h("h3", {}, def.milestoneTitle || "Milestones"));
     const list = h("div", { class: "milestones" });
@@ -211,7 +220,7 @@ function buildLayerContent(def, container) {
   }
 
   // Optional custom content from the layer definition
-  if (def.buildExtra) refs.extra = def.buildExtra(container);
+  if (def.buildExtra && show("extra")) refs.extra = def.buildExtra(container);
 
   return function update() {
     const t = tmp[id];
@@ -285,9 +294,10 @@ function buildLayerContent(def, container) {
       setText(r.desc, resolve(m.desc) || "");
       if (r.extra) setText(r.extra, resolve(m.extra) || "");
       setClass(r.row, "reached", !!t.milestones[key]);
+      setVisible(r.row, !m.hidden || !m.hidden());
     }
 
-    if (def.updateExtra) def.updateExtra(refs.extra);
+    if (def.updateExtra && refs.extra) def.updateExtra(refs.extra);
   };
 }
 
@@ -480,7 +490,7 @@ function buildResourcePanel(panel) {
       // create rows lazily (the number of rows can grow, e.g. when gas unlocks)
       while (g.rows.length < data.length) {
         const r = { label: h("div", { class: "res-label" }), value: h("div", { class: "res-value" }), sub: h("div", { class: "res-sub" }) };
-        r.row = h("button", { class: "res-row", onclick: () => showTab(g.id) }, r.label, r.value, r.sub);
+        r.row = h("button", { class: "res-row", onclick: () => showLayer(g.id) }, r.label, r.value, r.sub);
         g.rows.push(r);
         g.group.append(r.row);
       }

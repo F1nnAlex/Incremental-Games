@@ -6,7 +6,7 @@ defineScaling("cohesion", [
   {
     name: "Super",
     start: 52.5,
-    power: () => (hasUpgrade("collision", 6) ? 1.5 : 2),
+    power: () => (hasUpgrade("collision", 5) ? 1.5 : 2), // Shockwave
   },
 ]);
 defineScaling("gravity", [{ name: "Super", start: 10, power: 2 }]);
@@ -31,27 +31,6 @@ registerLayer({
 
   headerText: () => "You are " + withArticle(stageName()),
 
-  // Evolve bar at the top of the tab (like IMR's rank buttons on its main tab)
-  buildExtra: (container) => {
-    const title = h("div", { class: "evo-bar-title" });
-    const fill = h("div", { class: "progress-fill" });
-    const label = h("div", { class: "evo-bar-label" });
-    const btn = h("button", { class: "evo-bar-btn", onclick: () => requestPrestige("evolution") });
-    const box = h("div", { class: "evo-bar" }, h("div", { class: "evo-bar-main" }, title, h("div", { class: "progress" }, fill), label), btn);
-    container.insertBefore(box, container.firstChild);
-    return { title, fill, label, btn };
-  },
-  updateExtra: (r) => {
-    const n = evo();
-    setText(r.title, "You are " + withArticle(stageName()));
-    const p = evolutionProgress();
-    const pct = (p * 100).toFixed(1) + "%";
-    if (r.fill.style.width !== pct) r.fill.style.width = pct;
-    setText(r.label, n >= MAX_STAGE ? "Fully evolved for now." : pct + " to " + STAGES[n + 1].name + " (" + stageRequirementText(n + 1) + ")");
-    const can = !!tmp.evolution.canPrestige;
-    setText(r.btn, n >= MAX_STAGE ? "Fully evolved" : can ? "Evolve!" : "Evolve");
-    setClass(r.btn, "can", can);
-  },
 
   resources: () => [
     { label: atmosphereActive() ? "Core mass" : "Mass", value: formatMass(player.accretion.mass), sub: "+" + formatMass(tmp.accretion.gain) + "/s" },
@@ -60,13 +39,13 @@ registerLayer({
   buyables: {
     static: {
       title: "Static Charge",
-      desc: () => "Electric charge makes dust stick to you. Each level adds " + formatMass(PG) + "/s.",
+      desc: () => "Electric charge makes dust stick to you. Each level adds " + formatMass(PG * 1.5) + "/s.",
       noSpend: () => hasMilestone("collision", "c8"),
       costStart: PG,
       costGrowth: () => (hasUpgrade("accretion", 4) ? 1.12 : 1.15),
       scaling: "static",
       effect: (amount) => {
-        let mult = E(1);
+        let mult = E(1.5); // 1.5 pg/s per level (the overhaul sped up the first minutes)
         if (hasUpgrade("accretion", 2)) mult = mult.mul(2);
         if (hasMilestone("evolution", "e2")) mult = mult.mul(2);
         if (hasUpgrade("accretion", 6)) mult = mult.mul(upgradeEffect("accretion", 6));
@@ -166,11 +145,11 @@ registerLayer({
     11: {
       title: "Stellar Wind Capture",
       icon: "⤓",
-      desc: "Old winds fall back onto you. Mass softcap starts ×(Stellar Winds + 1) later.",
+      desc: "Old winds fall back onto you. Mass softcap starts ×(Stellar Winds + 1) later (up to ×101).",
       cost: E(1e37),
-      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlocked: () => evo() >= SUPERGIANT_STAGE || supernovae() > 0,
       unlockText: "Become a Supergiant to unlock.",
-      effect: () => E(generations() + 1),
+      effect: () => E(Math.min(generations(), 100) + 1), // capped: winds can count up forever once passive
       effectDisplay: (eff) => formatMult(eff),
     },
     12: {
@@ -178,7 +157,7 @@ registerLayer({
       icon: "◍",
       desc: "A spinning disk feeds you steadily. The hard mass softcap starts ×10 later.",
       cost: E(1e42),
-      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlocked: () => evo() >= SUPERGIANT_STAGE || supernovae() > 0,
       unlockText: "Become a Supergiant to unlock.",
     },
     13: {
@@ -186,7 +165,7 @@ registerLayer({
       icon: "☼",
       desc: "You shine as bright as your mass allows. Stardust gain ×log₁₀(mass in kg).",
       cost: E(1e44),
-      unlocked: () => evo() >= MAX_STAGE || supernovae() > 0,
+      unlocked: () => evo() >= SUPERGIANT_STAGE || supernovae() > 0,
       unlockText: "Become a Supergiant to unlock.",
       effect: () => player.accretion.mass.max(10).log10(),
       effectDisplay: (eff) => formatMult(eff),
@@ -263,6 +242,7 @@ registerLayer({
     if (hasUpgrade("collision", 8)) gain = gain.mul(upgradeEffect("collision", 8));
 
     gain = gain.mul(fusionMassMult());
+    gain = gain.mul(achMassMult()); // achievements
 
     // Gravity Well raises gain (measured in pg/s, so it always helps) to a power
     const exp = buyableEffect("accretion", "gravity");
@@ -317,7 +297,7 @@ function massSoftcapStart() {
   let s = E(9e20);
   if (hasMilestone("evolution", "e14")) s = s.mul(5); // deuterium burning puffs you up
   // Stars: fusion energy drives strong winds that sweep in more matter (×100 per star form)
-  if (evo() >= RED_DWARF_STAGE) s = s.mul(Decimal.pow(100, evo() - RED_DWARF_STAGE + 1));
+  if (evo() >= RED_DWARF_STAGE) s = s.mul(Decimal.pow(100, Math.min(evo(), SUPERGIANT_STAGE) - RED_DWARF_STAGE + 1));
   // Gas Giant and Metallic Hydrogen: the weight of your envelope compresses you, so you can keep growing
   if (hasMilestone("evolution", "e12")) s = s.mul(10);
   if (atmosphereActive() && hasAtmoLevel(9)) s = s.mul(gasSoftcapDelay());
@@ -326,11 +306,12 @@ function massSoftcapStart() {
   s = s.mul(supernovaSoftcapMult()); // Update 3: Black Hole remnant, Remnant Glow, Stellar Wind Capture, Bondi Accretion
   if (ruleActive("tidal")) s = s.div(ruleTidalDiv());
   s = s.div(tierRampDiv()); // Star Map: deeper tiers of a region
+  s = s.div(anomalySoftcapDiv()); // Stripped Envelope (anomaly)
+  s = s.mul(spectrumEffect("vis")); // Visible band
   return s.mul(fusionSoftcapDelay());
 }
 
 function massSoftcapPower() {
   let p = 0.5;
-  if (hasUpgrade("atmosphere", 3)) p += 0.05;
   return p + fusionSoftcapPowerBonus();
 }

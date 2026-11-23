@@ -14,7 +14,9 @@ function calc(dt) {
     const def = LAYERS[id];
     if (def.tick && tmp[id].unlocked) def.tick(dt);
   }
+  if (typeof tickSystems === "function") tickSystems(dt);
   runAutomation(dt);
+  if (typeof checkAchievements === "function") checkAchievements();
 }
 
 function gameTick() {

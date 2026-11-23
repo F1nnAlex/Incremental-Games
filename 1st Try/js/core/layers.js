@@ -87,6 +87,7 @@ function getLayerStartData() {
     for (const key in def.buyables) if (!(key in d.buyables)) d.buyables[key] = E(0);
     d.upgrades = d.upgrades || [];
     if (def.prestige && d.resets === undefined) d.resets = 0;
+    if (typeof systemStartData === "function") Object.assign(d, systemStartData(id)); // systems hosted by this layer
     data[id] = d;
   }
   return data;
@@ -166,7 +167,8 @@ function isLayerUnlocked(id) {
   const def = LAYERS[id];
   if (!def.unlocked || def.unlocked()) {
     player.unlocked[id] = true;
-    if (def.unlocked && typeof notify === "function") notify("New layer unlocked: " + def.name + "!");
+    if (def.unlocked && typeof announceLayer === "function") announceLayer(id);
+    else if (def.unlocked && typeof notify === "function") notify("New layer unlocked: " + def.name + "!");
     return true;
   }
   return false;
@@ -294,8 +296,9 @@ function doPrestige(layer, force = false) {
   player[layer][def.currency] = player[layer][def.currency].add(gain);
   player[layer].resets = (player[layer].resets || 0) + 1;
 
-  resetLayers(p.resets || [], p.keep);
+  resetLayers(p.resets || [], p.keep, layer);
   if (p.onReset) p.onReset(gain);
+  recordReset(layer);
   updateTemp();
   return true;
 }
@@ -304,10 +307,11 @@ function doPrestige(layer, force = false) {
  * Wipe the given layers back to start data, keeping keep(layerId) keys and reset counters.
  * Keys can be nested with a dot, e.g. "buyables.gravity" keeps just that one buyable.
  */
-function resetLayers(layerIds, keepFn) {
+function resetLayers(layerIds, keepFn, resetting) {
   const fresh = getLayerStartData();
   for (const target of layerIds) {
     const keep = (keepFn ? keepFn(target) : []).concat(["resets"]);
+    if (resetting && typeof systemKeeps === "function") keep.push(...systemKeeps(target, resetting));
     const old = player[target];
     const data = fresh[target];
     for (const k of keep) {
@@ -319,5 +323,19 @@ function resetLayers(layerIds, keepFn) {
       }
     }
     player[target] = data;
+    if (resetting && typeof systemAfterReset === "function") systemAfterReset(target, resetting);
   }
+}
+
+/** Stats: when a layer was first reset, and its fastest cycle. */
+function recordReset(layer) {
+  const s = player.stats;
+  if (!s || !s.first || !(layer in s.first)) return;
+  const now = s.timePlayed;
+  if (!s.first[layer]) s.first[layer] = now;
+  else {
+    const cycle = now - s.last[layer];
+    if (cycle > 0 && (!s.fastest[layer] || cycle < s.fastest[layer])) s.fastest[layer] = cycle;
+  }
+  s.last[layer] = now;
 }

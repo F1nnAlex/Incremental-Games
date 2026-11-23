@@ -6,16 +6,20 @@
 //   - Every completion makes that region's reward stronger. 30 completions in total.
 
 const STARMAP_UNLOCK_WINDS = 5;
+const AUTO_TRAVEL_AT = 12; // completions needed for Auto Travel
+const AUTO_TRAVEL_GIVE_UP = 900; // Auto Travel returns home after this many seconds in a region
+const AUTO_TRAVEL_COOLDOWN = 600; // …and skips that region for this many seconds
 const MAX_REGION_COMPLETIONS = 5;
 
 // Balance knobs for the region rules and rewards.
 // Rules get harsher with every tier (t = completions already earned in that region, 0–4).
 const STARMAP = {
-  tierRamp: 10, // every tier: the mass gain softcap starts tierRamp^t× sooner (t = 0–4)
+  tierRamp: 14, // every tier: the mass gain softcap starts tierRamp^t× sooner (t = 0–4)
   dustPower: 0.85, // Dusty Nebula: mass gain (pg/s, before softcaps) ^dustPower
   streamCohesion: 0.3, // Hypervelocity Stream: 0 collisions, no Shards, Cohesion −this per level
   voidDiv: 10, voidStep: 1.7, // Starless Void: gas gain ÷(voidDiv · voidStep^t) (gas has its own ramp)
   coldDiv: 4, // Cold Molecular Cloud: Compression doesn't work and core temperature ÷coldDiv
+  coldFusion: 3, // …and all fusion ÷coldFusion^tier (tier 1: no change)
   tidalDiv: 1000, // Black Hole Outskirts: mass gain softcap starts ÷this sooner
   dustyCohesion: 0.03, // reward: Cohesion +this per level per completion
   coldTemp: 0.1, // reward: core temperature ×(1 + this × c)
@@ -31,13 +35,13 @@ const RULES = {
   dust: { power: () => STARMAP.dustPower, text: () => "mass gain ^" + format(STARMAP.dustPower, 2) },
   stream: { cohesion: () => STARMAP.streamCohesion, text: () => "you start with 0 collisions, can't collide, get no Shards, and Cohesion is " + format(STARMAP.streamCohesion, 1) + " weaker per level" },
   void: { div: (t) => STARMAP.voidDiv * Math.pow(STARMAP.voidStep, t), text: (t) => "gas gain ÷" + formatWhole(STARMAP.voidDiv * Math.pow(STARMAP.voidStep, t)) },
-  cold: { div: () => STARMAP.coldDiv, text: () => "Compression and Shells don't work, and core temperature ÷" + formatWhole(STARMAP.coldDiv) },
+  cold: { div: () => STARMAP.coldDiv, fusion: (t) => Math.pow(STARMAP.coldFusion, t), text: (t) => "Compression and Shells don't work, and core temperature ÷" + formatWhole(STARMAP.coldDiv) + (t > 0 ? ", and all fusion ÷" + formatWhole(Math.pow(STARMAP.coldFusion, t)) : "") },
   tidal: { div: () => STARMAP.tidalDiv, text: () => "the mass gain softcap starts " + formatWhole(STARMAP.tidalDiv) + "× sooner" },
 };
 
 /** The tier ramp: the mass gain softcap starts this many times sooner in the run you are on. */
 function tierRampDiv(t = ruleTier()) {
-  return currentRegion() ? Math.pow(STARMAP.tierRamp, t) : 1;
+  return currentRegion() ? Math.max(1, Math.pow(STARMAP.tierRamp, t) / icePlanetDiv() / (refined("Be") ? 10 : 1)) : 1; // ice giants and Beryllium Shield soften it
 }
 
 // goal: { form: stage } or { elem: symbol, amount: kg }
@@ -78,7 +82,7 @@ const REGIONS = {
     // Without Compression, only bigger stars are hot enough: Carbon needs a Blue Giant, Oxygen a Supergiant
     goals: [
       { elem: "He", amount: 1e29 }, { elem: "C", amount: 1e27 }, { elem: "C", amount: 1e29 },
-      { elem: "O", amount: 1e28 }, { elem: "O", amount: 1e30 },
+      { elem: "O", amount: 1e26 }, { elem: "O", amount: 1e27 },
     ],
     rewardText: (c) => "Core temperature " + formatMult(1 + STARMAP.coldTemp * c) + ", Compression +" + format(STARMAP.coldCompression * c, 2) + " per level",
   },
@@ -117,6 +121,7 @@ function completions(id) {
 
 /** How strong a region's reward is: its completions (×2 with the Pulsar Wind Nebula). */
 function rewardLevel(id) {
+  if (typeof anomalyActive === "function" && anomalyActive("popiii")) return 0; // Population III (anomaly)
   return completions(id) * (typeof hasUpgrade === "function" && hasUpgrade("supernova", 7) ? 2 : 1);
 }
 
@@ -159,6 +164,11 @@ function ruleText(id, t = ruleTier(id)) {
 }
 
 /** The goal you are working towards in a region (its next tier). */
+/** Element goals; Lithium Flare (refinement) needs 10× less. */
+function goalAmount(goal) {
+  return E(goal.amount).div(refined("Li") ? 10 : 1);
+}
+
 function regionGoal(id) {
   const c = completions(id);
   return c >= MAX_REGION_COMPLETIONS ? null : REGIONS[id].goals[c];
@@ -167,13 +177,13 @@ function regionGoal(id) {
 function goalText(goal) {
   if (!goal) return "All 5 completions done";
   if (goal.form !== undefined) return "Become " + withArticle(STAGES[goal.form].name);
-  return "Fuse " + formatMass(goal.amount) + " of " + ELEMENT_INFO[goal.elem].name;
+  return "Fuse " + formatMass(goalAmount(goal)) + " of " + ELEMENT_INFO[goal.elem].name;
 }
 
 function goalReached(goal) {
   if (!goal) return false;
   if (goal.form !== undefined) return evo() >= goal.form;
-  return amountOf(goal.elem).gte(goal.amount);
+  return amountOf(goal.elem).gte(goalAmount(goal));
 }
 
 /** Travel: release a Stellar Wind (or restart if you can't yet) and be born in the region. */
@@ -182,6 +192,7 @@ function travel(id) {
   updateTemp();
   const wind = tmp.fusion.canPrestige;
   player.starmap.region = id; // set first: the reset starts you in the wild (no Planet start)
+  player.starmap.regionTime = 0;
   if (wind) doPrestige("fusion", true);
   else {
     const p = LAYERS.fusion.prestige;
@@ -220,10 +231,11 @@ function completeRegion(id) {
 }
 
 /** The region Auto Stellar Wind travels to with Protostellar Jets: fewest completions first. */
-function nextAutoRegion() {
+function nextAutoRegion(respectCooldown = false) {
   let best = "";
   for (const id of REGION_IDS) {
     if (!regionUnlocked(id) || completions(id) >= MAX_REGION_COMPLETIONS) continue;
+    if (respectCooldown && player.starmap.cooldown[id] > 0) continue;
     if (!best || completions(id) < completions(best)) best = id;
   }
   return best;
@@ -240,6 +252,9 @@ registerLayer({
 
   startData: () => ({
     total: E(0), // mirrors totalCompletions()
+    regionTime: 0, // seconds in the current region (Auto Travel gives up after 15 minutes)
+    cooldown: Object.fromEntries(REGION_IDS.map((id) => [id, 0])), // Auto Travel skips a region it gave up on for a while
+    formsSeen: 18, // highest Evolution form announced as unlocked (kept here because the Star Map never resets)
     region: "",
     completions: Object.fromEntries(REGION_IDS.map((id) => [id, 0])),
   }),
@@ -261,11 +276,38 @@ registerLayer({
     ];
   },
 
+  automation: {
+    travel: {
+      name: "Auto Travel",
+      unlocked: () => totalCompletions() >= AUTO_TRAVEL_AT,
+      run: () => {
+        if (currentRegion()) {
+          if (player.starmap.regionTime > AUTO_TRAVEL_GIVE_UP) {
+            player.starmap.cooldown[currentRegion()] = AUTO_TRAVEL_COOLDOWN; // grow stronger before trying it again
+            returnHome();
+          }
+          return;
+        }
+        const id = nextAutoRegion(true);
+        if (id) travel(id);
+      },
+    },
+  },
+
   buildExtra: (container) => buildStarMap(container),
   updateExtra: (r) => updateStarMap(r),
 
-  tick() {
+  tick(dt) {
+    if (currentRegion()) player.starmap.regionTime += dt;
+    for (const id of REGION_IDS) if (player.starmap.cooldown[id] > 0) player.starmap.cooldown[id] = Math.max(0, player.starmap.cooldown[id] - dt);
     player.starmap.total = E(totalCompletions());
+    // New Evolution forms unlock at big moments: announce each once
+    const top = maxStage();
+    if (top > player.starmap.formsSeen) {
+      const names = STAGES.slice(player.starmap.formsSeen + 1, top + 1).map((s) => s.name);
+      player.starmap.formsSeen = top;
+      notify("New evolution" + (names.length > 1 ? "s" : "") + " unlocked: " + names.join(", ") + "!");
+    }
     const r = currentRegion();
     if (r && goalReached(regionGoal(r))) completeRegion(r);
   },

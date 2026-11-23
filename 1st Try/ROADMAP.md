@@ -2,15 +2,32 @@
 
 The plan for making the game much longer. Each new era is **longer than the one before**, and scaling stretches the deeper you go.
 
-## Where we are
-The base game runs about **4h25** to Supergiant:
+## Where we are (after Update 6: Depth, simulated greedy player)
+Updates 1–6 are built. The game runs about **20 hours** to Spiral Galaxy, and each era is longer than the one before.
 
-| Stage | Length |
+| Milestone | Time (Neutron Star path) |
 |---|---|
-| Accretion (Dust → Planetesimal) | ~18 min |
-| Collision (until Planet) | ~1h30 |
-| Atmosphere ladder | ~18 min |
-| Fusion and Stellar Winds | ~2h20 |
+| First Collision | 15 min |
+| Planet | 50 min |
+| Red Dwarf (first star, first Stellar Wind) | 1h14 |
+| Star Map unlock (5 winds) | 1h47 |
+| Supergiant | 2h49 |
+| 30/30 Star Map (end of Update 2) | 3h37 |
+| First Supernova | 3h38 |
+| Kilonova upgrade (end of Update 3) | 5h40 |
+| First Kilonova | 6h14 |
+| Uranium, 9th Kilonova (end of Update 4) | 11h19 |
+| Irregular Galaxy (Auto Starburst) | 12h50 |
+| **Spiral Galaxy (end of Update 5)** | **20h20** (Black Hole path: 18h22) |
+
+| Era | Length |
+|---|---|
+| Dust → Planet | 50 min |
+| Planet → Star Map | 57 min |
+| Star Map (to 30/30) | 1h50 |
+| Supernova (to the Kilonova upgrade) | 2h03 |
+| Neutron Capture (to Uranium) | 5h38 |
+| Galaxy (to Spiral Galaxy) | 9h02 |
 
 ## Roadmap (each era longer than the last)
 | Update       | Era              | What's new                                                                                                                                                                                                                                                                                          | Target length   |
@@ -19,7 +36,9 @@ The base game runs about **4h25** to Supergiant:
 | 2 (done)     | Star era, deeper | **Star Map**: challenges as birthplaces; new Fusion upgrades unlocked by completions; Supergiant gated behind the Star Map; Enriched Winds (gas +20% per wind, up to ×2) | built: +1.5 h → ~6 h |
 | 3 (done) | Death of a star  | **Supernova** (layer 4): core collapse resets Fusion. Currency **Neutronium**. Supergiant burning stages (Ne → Mg → Si → Fe) refill the Periodic Table. Each Supernova, choose a **remnant**: Neutron Star (pulsar spin, steady bonuses) or Black Hole (accretion disk, huge but risky multipliers). **Accretion and Collision upgrade expansion** (5 + 5 new upgrades, see below) | +6–8 h          |
 | 4 (done) | Heavy elements   | **Neutron Capture**: neutron-star mergers and r-process "drops" of rare heavy elements (Sr, Ag, Au, Pt, U), collected with rarity tiers into periods 4–7 of the Periodic Table                                                                                                                      | +8–10 h         |
-| **5 (next)** | Galaxy           | **Galaxy** (layer 5): you become a star cluster, then a galaxy. Manage star populations, dark matter halo, spiral arms                                                                                                                                                                              | +15 h+          |
+| 5 (done)     | Galaxy           | **Galaxy** (layer 5): you become a star cluster, then a galaxy. Manage star populations, dark matter halo, spiral arms                                                                                                                                                                              | +15 h+          |
+
+| 6 (done)     | Depth            | **8 systems inside the existing tabs** (no new reset layer): Planetary Interior, Planetary System, Stellar Nursery, Element Refinement, Nucleosynthesis Tree, Supernova Anomalies, EM Spectrum, Galactic Rotation. The game grows from ~12h to ~20h. |
 
 **Pacing rule for every update:**
 - Each stage takes about 1.3–1.5× as long as the stage before it.
@@ -213,7 +232,7 @@ Neutron Stars build up Neutronium; Black Holes make cycles faster.
 
 The Accretion and Collision expansion above (11–15 and 9–13) belongs to this update too.
 
-### Pacing (simulated, as built)
+### Pacing (simulated before the overhaul; see "Where we are" for current numbers)
 | Milestone | Time |
 |---|---|
 | 30/30 (end of Update 2) | 5h45 |
@@ -243,9 +262,9 @@ Buying **Kilonova** (3,000 Neutronium, the end of Update 3) opens the **Kilonova
 - The ladder is **never reset**, so it is the steady backbone of Update 4.
 
 ### r-process: the Kilonova reset (layer 5)
-- **Requirement:** 4,000 Neutronium in hand, rising ×1.55 per Kilonova.
+- **Requirement:** 30,000 Neutronium in hand, rising ×2.2 per Kilonova (overhaul numbers).
 - **Resets:** the Supernova layer (Neutronium, Supernova upgrades, Supernova count, remnant levels) and everything below it. Star Map completions, discoveries, the s-process ladder and r-process elements stay.
-- **Reward:** r-process drops. Drops = 2 + floor(log₂(Neutronium ÷ requirement)). Each drop rolls one heavy element:
+- **Reward:** r-process drops. Drops = 2 + floor(log₁₀(Neutronium ÷ requirement)). Your 9th Kilonova always adds Uranium. Each drop rolls one heavy element:
 
 | Rarity | Chance | Elements |
 |---|---|---|
@@ -274,7 +293,7 @@ Becomes the full 18-column table (periods 1–7) once Kilonova is unlocked. The 
 ### End of Update 4
 Collect **Uranium**: the heaviest natural element. Teaser for Update 5: your remnants and stars start to gather into a cluster (Galaxy).
 
-### Pacing (simulated, as built)
+### Pacing (simulated before the overhaul; see "Where we are" for current numbers)
 | Milestone | Time |
 |---|---|
 | Kilonova upgrade (end of Update 3) | ≈ 11h05 |
@@ -288,3 +307,120 @@ Update 4 adds about 8h. Random drops can shift this a little either way, but pit
 - Free Neutrons based on *total* Neutronium fell after every Kilonova and stalled the ladder at Krypton, so they use *lifetime* Neutronium.
 - With 1 drop per Kilonova and 25-drop pity, Uranium took about 50 hours.
 - A fixed random seed gave every player the same unlucky start (no Uncommon in the first 24 drops), so each new game now gets its own seed.
+
+---
+
+## Update 5 in detail: Galaxy
+**Idea:** the debris of your kilonovae forms new stars around you. You stop being a single star and become a **star cluster**, then grow into a **galaxy**. This is layer 6 (Kilonova became layer 5 in Update 4).
+
+### Unlock
+Forging **Uranium** (the end of Update 4) opens the **Galaxy tab**.
+
+### Starburst (layer 6 reset)
+- **Requirement:** 20,000 Neutronium earned since your last Starburst, ×1.15 for each of the first 10 Starbursts.
+- **Gain:** Stars = (Neutronium earned this cycle ÷ requirement)^0.6 × multipliers, softcapped above 100 per Starburst (^0.5).
+- **Resets:** the Kilonova layer (Kilonovae, Free Neutrons) and everything below it.
+- **Kept:** heavy elements, the s-process ladder, lifetime Neutronium, Star Map completions and discoveries.
+
+### Spiral arms: assign your Stars
+Stars sit in your core until you assign them to one of three spiral arms. You can reassign them any time.
+
+| Arm | Effect with s Stars |
+|---|---|
+| **Stellar Arm** | Mass softcap starts ×(1 + s)² later and all fusion ×(1 + s)^0.5 |
+| **Neutron Arm** | Neutronium gain ×(1 + s)^0.2 |
+| **r-Process Arm** | Free Neutrons ×(1 + s), and +1 Kilonova drop per factor of 10 Stars |
+
+### Dark matter halo
+Your Stars pull in **Dark Matter**: (total Stars)^0.5 per second. Spend it on three repeatable halo buildings:
+
+| Building | Effect per level | Cost |
+|---|---|---|
+| Halo Density | Neutronium ×1.1 | 10 × 3^level |
+| Halo Spin | Free Neutrons ×2 | 50 × 3.5^level |
+| Gravitational Lensing | Star gain ×1.1 | 100 × 4^level |
+
+### Galaxy forms (by lifetime Stars)
+| Form | Lifetime Stars | Reward |
+|---|---|---|
+| Star Cluster | 1 | The Galaxy layer begins |
+| Globular Cluster | 25 | Keep Supernova upgrades on Starburst |
+| Dwarf Galaxy | 200 | Dark Matter ×3 |
+| Irregular Galaxy | 1,000 | Auto Starburst (waits until the gain is a set % of your Stars) |
+| **Spiral Galaxy** | 2,500 | End of Update 5. Teaser: your galaxy is not alone (Update 6: Local Group) |
+
+### Starburst milestones (by number of Starbursts)
+| Starbursts | Milestone |
+|---|---|
+| 1 | Start every cycle with 3 Kilonovae (and their milestones) |
+| 2 | Start with 5 Kilonovae (Auto Capture) |
+| 4 | Start with 8 Kilonovae (Auto Kilonova) |
+| 6 | Free Neutrons are kept on Starburst |
+
+### Pacing
+After the overhaul: about 5h from Uranium to Spiral Galaxy, the longest era. See "Where we are" at the top.
+
+---
+
+## New Evolution forms (added in Update 5)
+The Evolution ladder no longer ends at Supergiant. New forms unlock at big moments: **2 at 30/30 on the Star Map** (they slightly speed up the first Supernova), then **3 the first time you use each new reset layer**. **Every future reset layer (Update 6 onwards) adds new forms the same way.**
+
+Mass alone would be instant this late, so every new form also needs something from its own era. You climb them during a cycle.
+
+| # | Form | Mass | Also needs | Unlocked by | Reward |
+|---|---|---|---|---|---|
+| 19 | Hypergiant | 80 M☉ | 1 M☉ of Magnesium | 30/30 Star Map | Magnesium, Silicon and Iron fusion ×3 |
+| 20 | Luminous Blue Variable | 150 M☉ | 1 M☉ of Silicon | 30/30 Star Map | Iron fusion ×3, core temperature ×1.5 |
+| 21 | Wolf–Rayet Star | 250 M☉ | 0.5 M☉ of Iron | first Supernova | Neutronium gain ×1.5 |
+| 22 | Very Massive Star | 400 M☉ | 1 M☉ of Iron | first Supernova | Iron fusion ×5 |
+| 23 | Pair-Instability Star | 600 M☉ | 1.2 M☉ of Iron | first Supernova | Neutronium gain ×2 |
+| 24 | Population III Star | 1,000 M☉ | 100 Neutronium | first Kilonova | Free Neutrons ×3 |
+| 25 | Supermassive Star | 5,000 M☉ | 1,000 Neutronium | first Kilonova | Kilonova drops +1 |
+| 26 | Quasi-star | 20,000 M☉ | 10,000 Neutronium | first Kilonova | Neutronium gain ×2 |
+| 27 | Dark Star | 100,000 M☉ | 50,000 Neutronium this Starburst cycle | first Starburst | Dark Matter ×2 |
+| 28 | Super Star Cluster | 1,000,000 M☉ | 100,000 Neutronium this Starburst cycle | first Starburst | Star gain ×1.5 |
+| 29 | Nuclear Star Cluster | 10,000,000 M☉ | 150,000 Neutronium this Starburst cycle | first Starburst | A Starburst needs half as much Neutronium |
+
+The Iron forms sit on the way to the 1.4 M☉ Chandrasekhar limit, so their Neutronium bonuses count at the moment you go Supernova.
+
+**Bigger forms hold bigger iron cores.** The Iron (and Mg/Si) cap is your current form's mass, not the Supergiant's. Neutronium per Supernova is (Iron ÷ 1.4 M☉)^0.5, so climbing the forms each cycle pays off: a Pair-Instability Star (600 M☉) can hold 24× the Iron of a Supergiant, so about 5× the Neutronium. This removed the grind for the 3,000-Neutronium Kilonova upgrade. Hydrogen stays capped at the Supergiant's mass, so Updates 1–2 are unchanged.
+
+**Balance rules (so the new forms cannot break the game):**
+- The new forms change the game **only through their own rewards**.
+- Everything that grows with your form stops at Supergiant (`SUPERGIANT_STAGE`): the ×100 mass softcap per star form, the Stardust form bonus, the core-temperature mass cap, the Hydrogen and core-element caps, and the Supernova requirement.
+- `maxStage()` is the highest unlocked form, used by the Evolve bar, Auto Evolve and the Viewer.
+- Locked forms and their milestones stay hidden until they unlock; each unlock is announced once.
+
+## Passive resets (added in Update 5)
+From the **first Kilonova**, Stellar Winds and Collisions run on their own: every second you gain 100% of the Stardust and Shards they would give, plus +1 Stellar Wind and +1 collision. Manual and auto Stellar Wind and Collide go away. Bonuses that count winds or collisions (Stellar Wind Capture, Kinetic Energy, the collision mass bonus) are capped at 100.
+- **Why the first Kilonova:** unlocking it at the first Supernova shrank Update 3 to 28 minutes and Update 4 to 52 minutes in the simulator.
+- **Auto Supernova** waits 1 second after a Supernova becomes possible, so Auto Evolve can reach the Iron forms (and their Neutronium bonuses) first.
+
+
+---
+
+## Update 6 in detail: Depth (built)
+The user wanted fuller tabs and a longer game **without new reset layers**, with mechanics that are neither plain multipliers nor minigames. Each system is something you set up and watch grow, and most of its rewards change *how* the game plays (rules, automation, keeping things).
+
+| System | Tab | Unlock | Core loop | Rewards |
+|---|---|---|---|---|
+| Planetary Interior | Body → Interior | 1st Collision | Shards → Rubble → Mantle → Iron Core → Magnetic Field | 7 field perks (1 μT → 100 T): Shard trickle, keep Cohesion, Aurora bursts, cheaper planet forms and Atmosphere ladder, survive Stellar Winds, free Compression |
+| Planetary System | Star → System | 1st Stellar Wind | planets form at 1, 2, 3, 5, 8, 12, 18, 25 winds and grow | rocky: Interior; gas giants: Stardust; ice giants: softer Star Map ramp; 4 badges |
+| Stellar Nursery | Star → Core | Star Map unlock | Stardust → Main-sequence ← T Tauri ← Protostars ← Clouds | Star Formation Rate (% of a Stellar Wind per second) |
+| Element Refinement | Star → Periodic Table | first star | one-time refine per element (24) | rule changes per element, three eras of keeping |
+| Nucleosynthesis Tree | Supernova → Tree | 1st Supernova | 19 Neutronium nodes with prerequisites | convenience, remnant paths, Capture nodes; refund restarts the cycle |
+| Supernova Anomalies | Supernova → Anomalies | 10 Supernovae | 6 challenges × 10 completions | small permanent rewards that grow per completion |
+| EM Spectrum | Galaxy → Spectrum | 1st Starburst | Dark Matter → Radio → … → Gamma | each band boosts a different older layer |
+| Galactic Rotation | Galaxy → Starburst | 1st Starburst | timer: each rotation is a Galactic Year | 7 perks: automation, keeping systems through Starbursts, more drops |
+
+**Balance changes that came with it (the systems made the old numbers far too easy):**
+- **Star Era:** base gas gain 4e-4 M⊕/s (was 6e-4); Star Map tier ramp ×14 (was ×10).
+- **Kilonova:** the upgrade costs 250,000 Neutronium (was 40,000); the first Kilonova needs 200,000, ×2.7 per Kilonova (was 30,000, ×2.2).
+- **Starburst:** the requirement grows ×1.28 for the first 60 Starbursts (was ×1.15 for 10). Irregular Galaxy needs 2,500 Stars and Spiral Galaxy 8,000 (were 1,000 and 2,500).
+- **System tuning:**
+  - Gas giants boost Stardust, not gas, and the Oxygen refinement keeps elements, not gas. Anything that skips or grows gas collapsed the Star era.
+  - Anomaly goals grow ×6 per completion.
+  - Refinements never touch the Neutronium softcap.
+  - Snowplow no longer starts cycles as a Supergiant.
+
+**Pacing:** see "Where we are" at the top.

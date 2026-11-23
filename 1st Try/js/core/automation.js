@@ -100,6 +100,11 @@ function autoBuyUpgrades(layer) {
 }
 
 /** Reset a layer automatically whenever possible (no confirmation). */
+/** The next value in a settings list (wraps around). */
+function nextInList(list, value) {
+  return list[(list.indexOf(value) + 1) % list.length];
+}
+
 function autoPrestige(layer) {
   return () => {
     updateTemp();

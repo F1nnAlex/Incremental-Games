@@ -7,14 +7,15 @@
 
 // Balance knobs
 const KILONOVA = {
-  reqBase: 4000, // Neutronium needed for the first Kilonova
-  reqGrowth: 1.55, // ×this for every Kilonova after it
-  dropsBase: 2, // drops per Kilonova = dropsBase + one per doubling of the requirement
+  reqBase: 2e5, // Neutronium needed for the first Kilonova
+  reqGrowth: 2.7, // ×this for every Kilonova after it
+  dropsBase: 2, // drops per Kilonova = dropsBase + one per ×10 of the requirement
   ladderBase: 100, // Free Neutrons for the first s-process step
   ladderGrowth: 3.2, // each step costs ×this more
   neutronPow: 0.5, // Free Neutrons per second = (lifetime Neutronium)^this × boosts
   rarePity: 6, // the 6th drop in a row without a Rare (or better) is Rare
   legendaryPity: 20, // the 20th drop in a row without a Legendary is Legendary
+  uraniumAt: 9, // your 9th Kilonova always forges Uranium (the end of Update 4); before that, Legendaries level up Thorium
 };
 
 // ---------- s-process ladder ----------
@@ -37,7 +38,7 @@ function ladderStep() {
 }
 
 function ladderCost(i = ladderStep()) {
-  return E(KILONOVA.ladderBase).mul(Decimal.pow(KILONOVA.ladderGrowth, i)).div(rElemLevel("Pb") + 1);
+  return E(KILONOVA.ladderBase).mul(Decimal.pow(KILONOVA.ladderGrowth, i)).div(rElemLevel("Pb") + 1).div(refined("Zn") ? 3 : 1).div(treeHas("c2") ? 2 : 1); // Zinc Plating, Seed Nuclei (tree)
 }
 
 /** The combined boost of one kind from every ladder step you have captured. */
@@ -57,12 +58,19 @@ function captureNext() {
 }
 
 function freeNeutronRate() {
-  if (!kilonovaUnlocked()) return E(0);
+  const drip = !kilonovaUnlocked() && hasUpgrade("supernova", 10); // Neutron Drip: 1% before Neutron Capture
+  if (!kilonovaUnlocked() && !drip) return E(0);
   let r = player.kilonova.lifeNeutronium.add(1).pow(KILONOVA.neutronPow);
   r = r.mul(1 + remnantLevel("ns"));
   r = r.mul(rElemLevel("Ce") + 1).mul(E(rElemLevel("Hg") + 1).pow(2));
   if (hasMilestone("kilonova", "k4")) r = r.mul(2);
-  return r;
+  if (hasMilestone("evolution", "e24")) r = r.mul(3); // Population III Star
+  r = r.mul(galaxyFreeNeutronMult()); // r-Process Arm, Halo Spin
+  if (treeHas("n3")) r = r.mul(Math.pow(1 + remnantLevel("ns"), 0.5)); // Millisecond Pulsar (tree)
+  if (treeHas("c1")) r = r.mul(2); // Neutron Flux (tree)
+  r = r.mul(anomalyNeutronMult()); // Magnetar (anomaly reward)
+  r = r.mul(spectrumEffect("xray")); // X-ray band
+  return drip ? r.mul(treeHas("n1") ? 0.1 : 0.01) : r; // Pulsar Beam (tree)
 }
 
 // ---------- r-process elements ----------
@@ -107,18 +115,33 @@ function kilonovaRandom() {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
+const MIN_DROPS = [1, 2, 3, 4, 5, 8]; // Auto Kilonova settings
+
+/** Pity counters (Barium Flash / Platinum Catalyst refinements shorten them). */
+function rarePity() {
+  return refined("Ba") ? 4 : KILONOVA.rarePity;
+}
+function legendaryPity() {
+  return refined("Pt") ? 15 : KILONOVA.legendaryPity;
+}
+/** Kilonova number that always forges Uranium (Golden Ratio refinement: the 7th). */
+function uraniumAt() {
+  return KILONOVA.uraniumAt - (refined("Au") ? 1 : 0) - (treeHas("c5") ? 1 : 0); // Golden Ratio (refinement), Third Peak (tree)
+}
+
 /** Roll one r-process drop: rarity (with pity), then an element of that rarity. */
 function rollDrop() {
   const k = player.kilonova;
   let rarity;
-  if (k.sinceLegendary + 1 >= KILONOVA.legendaryPity) rarity = "legendary";
-  else if (k.sinceRare + 1 >= KILONOVA.rarePity) rarity = "rare";
+  if (k.sinceLegendary + 1 >= legendaryPity()) rarity = "legendary";
+  else if (k.sinceRare + 1 >= rarePity()) rarity = "rare";
   else {
     const x = kilonovaRandom();
     rarity = x < RARITIES.legendary.chance ? "legendary" : x < RARITIES.legendary.chance + RARITIES.rare.chance ? "rare" : x < 0.4 ? "uncommon" : "common";
   }
   let sym;
-  if (rarity === "legendary") sym = rElemLevel("Th") > 0 ? "U" : "Th"; // Thorium first, then Uranium
+  // Thorium first; Uranium only from the uraniumAt-th Kilonova on (resets already counts the one in progress)
+  if (rarity === "legendary") sym = rElemLevel("Th") > 0 && player.kilonova.resets >= uraniumAt() ? "U" : "Th";
   else {
     const pool = R_ELEMENTS.filter((e) => e[3] === rarity);
     sym = pool[Math.floor(kilonovaRandom() * pool.length)][0];
@@ -133,7 +156,7 @@ function rollDrop() {
 // ---------- Effects on other layers ----------
 
 function kilonovaUnlocked() {
-  return hasUpgrade("supernova", 9) || player.kilonova.resets > 0;
+  return hasUpgrade("supernova", 13) || player.kilonova.resets > 0;
 }
 
 function kilonovaNeutroniumMult() {
@@ -172,16 +195,21 @@ function kilonovaIronLimitDiv() {
 }
 
 function kilonovaRequirement() {
-  return E(KILONOVA.reqBase).mul(Decimal.pow(KILONOVA.reqGrowth, player.kilonova.resets)).div(rElemLevel("Pt") + 1);
+  return E(KILONOVA.reqBase).mul(Decimal.pow(KILONOVA.reqGrowth - kilonovaGrowthCut(), player.kilonova.resets)).div(rElemLevel("Pt") + 1).div(treeHas("c4") ? 2 : 1); // Krypton / Lead refinements, Fission Recycling (tree)
 }
 
 function kilonovaDrops() {
   const n = player.supernova.neutronium;
   const req = kilonovaRequirement();
   if (n.lt(req)) return E(0);
-  let d = n.div(req).log2().floor().add(KILONOVA.dropsBase);
+  let d = n.div(req).log10().floor().add(KILONOVA.dropsBase);
   if (hasSet("rare")) d = d.add(1);
-  return d;
+  if (hasMilestone("evolution", "e25")) d = d.add(1); // Supermassive Star
+  if (refined("Mo")) d = d.add(1); // Molybdenum Core (refinement)
+  if (treeHas("c3")) d = d.add(1); // Waiting Points (tree)
+  d = d.add(anomalyExtraDrops()); // Magnetar at 10 completions
+  if (hasYearPerk(15)) d = d.add(1); // 15 Galactic Years
+  return d.add(galaxyExtraDrops()); // r-Process Arm
 }
 
 /** Supernovae you start each Kilonova cycle with (their milestones come with them). */
@@ -212,6 +240,7 @@ registerLayer({
     sinceLegendary: 0,
     lastDrops: [],
     ended: false,
+    minDrops: 2, // Auto Kilonova waits for at least this many drops
   }),
 
   resources: () => [
@@ -226,20 +255,32 @@ registerLayer({
     canReset: () => player.supernova.neutronium.gte(kilonovaRequirement()),
     requirementText: () => "Have " + formatWhole(kilonovaRequirement()) + " Neutronium (you have " + formatWhole(player.supernova.neutronium) + ")",
     buttonText: () => (tmp.kilonova.canPrestige ? "Kilonova: +" + formatWhole(tmp.kilonova.prestigeGain) + " heavy element" + (tmp.kilonova.prestigeGain.eq(1) ? "" : "s") : "Kilonova"),
-    infoText: () => "Two neutron stars collide. Resets the Supernova layer (Neutronium, upgrades, Supernovae, remnant levels) and everything below it. Star Map completions, the s-process ladder and heavy elements stay. You get " + KILONOVA.dropsBase + " drops, plus one more for every doubling of the requirement.",
+    infoText: () => "Two neutron stars collide. Resets the Supernova layer (Neutronium, upgrades, Supernovae, remnant levels) and everything below it. Star Map completions, the s-process ladder and heavy elements stay. You get " + KILONOVA.dropsBase + " drops, plus one more for every ×10 above the requirement.",
     resets: ["accretion", "evolution", "atmosphere", "collision", "fusion", "supernova"],
     keep: (layer) => {
-      if (layer === "fusion") return ["discovered", "windTarget"];
+      if (layer === "fusion") return ["discovered", "windMode", "windValue"];
       if (layer === "supernova") {
         const keep = ["kilonova"];
+        if (treeHas("m1")) { keep.push("chosen"); rememberRemnants = true; } // Remnant Memory (tree)
         if (hasMilestone("kilonova", "k2")) keep.push("upgrades");
         return keep;
       }
       return [];
     },
     onReset: (gain) => {
+      refineOnReset("kilonova");
+      if (rememberRemnants) {
+        rememberRemnants = false;
+        for (const t in player.supernova.chosen) player.supernova.chosen[t] = Math.floor(player.supernova.chosen[t] / 2);
+      }
       const got = [];
       for (let i = 0; i < gain.toNumber(); i++) got.push(rollDrop());
+      // your uraniumAt-th Kilonova always forges Uranium (the end of Update 4), so the goal never depends on luck
+      if (rElemLevel("U") === 0 && player.kilonova.resets >= uraniumAt()) {
+        player.kilonova.r.U = 1;
+        discover("U", true);
+        got.push("U");
+      }
       player.kilonova.lastDrops = got;
       player.supernova.resets = startingSupernovae();
       player.supernova.pending = false;
@@ -252,27 +293,44 @@ registerLayer({
   milestoneTitle: "Kilonova milestones",
   milestones: {
     k1: { req: () => player.kilonova.resets >= 1, reqText: "1 Kilonova", desc: "Start every Kilonova cycle with 4 Supernovae (and their milestones)." },
+    k1b: { req: () => player.kilonova.resets >= 1, reqText: "1 Kilonova", desc: "Stellar Winds blow on their own: every second you gain 100% of the Stardust a Stellar Wind would give, and +1 Stellar Wind. You can no longer trigger them by hand." },
     k2: { req: () => player.kilonova.resets >= 2, reqText: "2 Kilonovae", desc: "Keep Supernova upgrades on Kilonova." },
     k3: { req: () => player.kilonova.resets >= 3, reqText: "3 Kilonovae", desc: "Start every Kilonova cycle with 8 Supernovae (Auto Supernova)." },
-    k4: { req: () => player.kilonova.resets >= 5, reqText: "5 Kilonovae", desc: "Free Neutrons ×2. Unlock Auto Capture (the s-process ladder buys itself)." },
-    k5: { req: () => player.kilonova.resets >= 8, reqText: "8 Kilonovae", desc: "Start every Kilonova cycle with 12 Supernovae. Unlock Auto Kilonova." },
+    k4: { req: () => player.kilonova.resets >= 4, reqText: "4 Kilonovae", desc: "Free Neutrons ×2. Unlock Auto Capture (the s-process ladder buys itself)." },
+    k5: { req: () => player.kilonova.resets >= 6, reqText: "6 Kilonovae", desc: "Start every Kilonova cycle with 12 Supernovae. Unlock Auto Kilonova." },
   },
 
   automation: {
-    capture: { name: "Auto Capture", unlocked: () => hasMilestone("kilonova", "k4"), run: () => { while (captureNext()); } },
-    kilonova: { name: "Auto Kilonova", unlocked: () => hasMilestone("kilonova", "k5"), run: autoPrestige("kilonova") },
+    capture: { name: "Auto Capture", unlocked: () => hasMilestone("kilonova", "k4") || (refined("Co") && player.kilonova.resets >= 1), run: () => { while (captureNext()); } },
+    kilonova: {
+      name: "Auto Kilonova",
+      unlocked: () => hasMilestone("kilonova", "k5") || (refined("Sr") && player.kilonova.resets >= 3),
+      run: () => {
+        updateTemp();
+        if (tmp.kilonova.canPrestige && tmp.kilonova.prestigeGain.gte(player.kilonova.minDrops)) doPrestige("kilonova");
+      },
+    },
   },
 
   tick(dt) {
-    player.kilonova.neutrons = player.kilonova.neutrons.add(freeNeutronRate().mul(dt));
     if (rElemLevel("U") > 0 && !player.kilonova.ended) {
       player.kilonova.ended = true;
       notify("URANIUM! You have forged the heaviest natural element. That is the end of Update 4. Your remnants are starting to gather into a cluster... (to be continued: Galaxy)");
     }
   },
 
-  buildExtra: (container) => buildCapturePanel(container),
-  updateExtra: (r) => updateCapturePanel(r),
+  buildExtra: (container) => {
+    const r = buildCapturePanel(container);
+    const btn = h("button", { class: "auto-btn on", onclick: () => { player.kilonova.minDrops = nextInList(MIN_DROPS, player.kilonova.minDrops); } });
+    const box = h("div", { class: "auto-box" }, btn);
+    container.insertBefore(box, container.querySelector(".auto-box"));
+    return { r, box, btn };
+  },
+  updateExtra: (x) => {
+    updateCapturePanel(x.r);
+    setVisible(x.box, isAutoUnlocked("kilonova", "kilonova"));
+    setText(x.btn, "Auto Kilonova waits for " + player.kilonova.minDrops + " drop" + (player.kilonova.minDrops === 1 ? "" : "s"));
+  },
 });
 
 // ---------- Kilonova tab: s-process ladder and r-process collection ----------
@@ -320,7 +378,7 @@ function updateCapturePanel(r) {
 
   const last = player.kilonova.lastDrops;
   setText(r.last, last.length ? "Last Kilonova forged: " + last.map((s) => R_BY_SYM[s][2]).join(", ") : "No Kilonova yet. Each one drops heavy elements; a duplicate raises its level.");
-  setText(r.pity, "Guaranteed Rare in " + (KILONOVA.rarePity - player.kilonova.sinceRare) + " drops, Legendary in " + (KILONOVA.legendaryPity - player.kilonova.sinceLegendary) + ".");
+  setText(r.pity, "Guaranteed Rare in " + (rarePity() - player.kilonova.sinceRare) + " drops, Legendary in " + (legendaryPity() - player.kilonova.sinceLegendary) + "." + (rElemLevel("U") === 0 ? " Kilonova number " + uraniumAt() + " always forges Uranium (" + player.kilonova.resets + " / " + uraniumAt() + " so far)." : ""));
   for (const [sym] of R_ELEMENTS) {
     const c = r.cards[sym];
     const L = rElemLevel(sym);

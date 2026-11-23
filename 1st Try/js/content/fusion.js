@@ -43,14 +43,19 @@ function elemLog(sym) {
 
 /** Your star's mass, up to a Supergiant's: the most Hydrogen fuel, and the most core elements, it can hold. */
 function elementCap() {
-  return player.accretion.mass.min(STAGES[MAX_STAGE].mass);
+  return player.accretion.mass.min(STAGES[SUPERGIANT_STAGE].mass);
+}
+
+/** The most core elements (Mg, Si, Fe) your star can hold: bigger forms hold bigger cores. */
+function coreCap() {
+  return player.accretion.mass.min(STAGES[Math.max(SUPERGIANT_STAGE, Math.min(evo(), MAX_STAGE))].mass).mul(refined("Mg") ? 3 : 1); // Magnesium Burning (refinement)
 }
 
 function amountOf(sym) {
   if (sym === "H") return elementCap().mul(HYDROGEN_FRACTION);
   const x = player.fusion.elements[sym] || E(0);
   // The core elements (Mg, Si, Fe) cannot outweigh your star, so the iron core has a real limit
-  return CHAIN_BY_SYM[sym] && CHAIN_BY_SYM[sym].late ? x.min(elementCap()) : x;
+  return CHAIN_BY_SYM[sym] && CHAIN_BY_SYM[sym].late ? x.min(coreCap()) : x;
 }
 
 function isDiscovered(sym) {
@@ -71,11 +76,13 @@ function fusionUnlocked() {
 function coreTemp() {
   if (!fusionUnlocked()) return E(0);
   // Mass only counts up to your next form's requirement, so every star form unlocks its own burning phase.
-  const cap = STAGES[Math.min(evo() + 1, MAX_STAGE)].mass;
+  const cap = STAGES[Math.min(evo() + 1, SUPERGIANT_STAGE)].mass;
   let t = E(1e7).mul(player.accretion.mass.min(cap).div(1.6e29).pow(0.8));
   if (!(typeof ruleActive === "function" && ruleActive("cold"))) t = t.mul(buyableEffect("fusion", "compression")); // Cold Molecular Cloud: no Compression
   if (hasMilestone("evolution", "e17")) t = t.mul(1.5);
   t = t.mul(siliconTempMult());
+  if (hasUpgrade("atmosphere", 3)) t = t.mul(1.5); // Hydrogen Envelope
+  if (hasMilestone("evolution", "e20")) t = t.mul(1.25); // Luminous Blue Variable
   // Star Map, Cold Molecular Cloud: rule ÷4, reward ×(1 + 0.1c)
   t = t.mul(1 + STARMAP.coldTemp * rewardLevel("cold"));
   t = t.mul(supernovaTempMult()); // Update 3: Hypermassive Core, Impact Heating
@@ -96,8 +103,13 @@ function fusionRate(sym) {
   if (sym === "He" && isDiscovered("N")) r = r.mul(10);
   if (sym === "C" && hasUpgrade("fusion", 4)) r = r.mul(elemLog("He").add(1));
   if (sym === "Fe" && hasUpgrade("supernova", 8)) r = r.mul(100); // Hypernova
+  if (typeof ruleActive === "function" && ruleActive("cold")) r = r.div(RULES.cold.fusion(ruleTier())); // Cold Molecular Cloud
+  if (c.late && hasMilestone("evolution", "e19")) r = r.mul(2); // Hypergiant
+  if (sym === "Fe" && hasMilestone("evolution", "e20")) r = r.mul(2); // Luminous Blue Variable
+  if (sym === "Fe" && hasMilestone("evolution", "e22")) r = r.mul(2); // Very Massive Star
   if (sym === "Fe") r = r.mul(kilonovaIronFusionMult()); // s-process ladder, Samarium
   if (sym === "Fe" && hasUpgrade("collision", 13)) r = r.mul(player.collision.shards.max(10).log10()); // Iron Meteorites
+  if (sym === "Fe" && refined("Fe")) r = r.mul(10); // Iron Peak (refinement)
   return r;
 }
 
@@ -109,9 +121,12 @@ function compressionBase() {
 function allFusionMult() {
   let m = E(1);
   if (hasMilestone("evolution", "e18")) m = m.mul(3);
-  if (hasUpgrade("fusion", 8)) m = m.mul(player.fusion.discovered.length);
+  if (hasUpgrade("fusion", 8)) m = m.mul(1 + player.fusion.discovered.length / 4); // Onion Shells
   if (hasUpgrade("supernova", 2)) m = m.mul(10); // Neutrino Burst
   m = m.mul(kilonovaAllFusionMult()); // Uncommon set
+  m = m.mul(galaxyFusionMult()); // Stellar Arm
+  m = m.mul(heliumFlash()); // Helium Flash (refinement)
+  m = m.div(anomalyFusionDiv()); // Magnetar (anomaly)
   return m;
 }
 
@@ -127,6 +142,7 @@ function totalStardust() {
 /** Collisions you start each generation with (their milestones come with them). */
 function startingCollisions() {
   if (typeof ruleActive === "function" && ruleActive("stream")) return 0; // Hypervelocity Stream
+  if (hasSystemBadge(0)) return 25; // Earth Twin (Planetary System)
   if (hasMilestone("fusion", "w3")) return 12;
   if (hasMilestone("fusion", "w1")) return 5;
   return 0;
@@ -161,6 +177,7 @@ function fusionEnvelopeMult() {
   let m = elemLog("O").div(10).add(1);
   if (hasUpgrade("fusion", 3)) m = m.mul(2);
   m = m.mul(windGasMult());
+  if (hasMilestone("fusion", "w11")) m = m.mul(3); // 12 Stellar Winds: gas gain ×3
   if (isDiscovered("B")) m = m.mul(2 * lightElementBoost());
   return m;
 }
@@ -211,12 +228,17 @@ function oxygenStardustMult() {
 
 function stardustMult() {
   // Bigger stars blow stronger winds: Red Dwarf ×2, Yellow Dwarf ×3, Blue Giant ×4, Supergiant ×5
-  let m = E(Math.max(1, evo() - 13));
+  let m = E(Math.max(1, Math.min(evo(), SUPERGIANT_STAGE) - 13));
   if (hasMilestone("evolution", "e16")) m = m.mul(2);
   m = m.mul(oxygenStardustMult()).mul(neonStardustMult());
+  m = m.mul(gasPlanetMult()); // gas giants of your Planetary System
+  m = m.mul(spectrumEffect("ir")); // Infrared band
+  if (treeHas("x6")) m = m.mul(2); // Snowplow (tree)
   m = m.mul(E(rewardLevel("remnant") + 1).pow(STARMAP.remnantPow));
-  m = m.mul(supernovaStardustMult()); // Update 3: Neutron Star, r-Process Seeds, Eddington Luminosity, Shard Lattice
+  m = m.mul(supernovaStardustMult());
+  m = m.mul(achStardustMult()); // achievements (Stars and Star Map rows) // Update 3: Neutron Star, r-Process Seeds, Eddington Luminosity, Shard Lattice
   if (hasUpgrade("fusion", 10)) m = m.mul(cartographyMult());
+  if (hasUpgrade("fusion", 12)) m = m.mul(Decimal.pow(2, REGION_IDS.filter((id) => completions(id) >= MAX_REGION_COMPLETIONS).length)); // Stellar Pulsations
   if (hasMilestone("fusion", "w12")) m = m.mul(Decimal.pow(1.1, player.fusion.discovered.length));
   if (hasUpgrade("fusion", 9)) m = m.mul(Decimal.pow(1.05, totalMilestonesReached()));
   return m;
@@ -318,6 +340,36 @@ function elementStatus(sym) {
   return { state: "todo", text: "Needs a " + formatTemp(c.ignite) + " core (yours: " + formatTemp(t) + ")." + hint };
 }
 
+// ---------- Auto Stellar Wind modes ----------
+
+const WIND_MODES = {
+  gain: { name: "Stardust gain", values: [5, 10, 25, 50, 100, 200], text: (v) => "Blows when it gives ≥ " + v + "% of your total Stardust" },
+  time: { name: "Timer", values: [5, 15, 30, 60, 120, 300], text: (v) => "Blows every " + v + " s" },
+  form: { name: "Form", values: [15, 16, 17, 18], text: (v) => "Blows once you are " + withArticle(STAGES[Math.min(v, MAX_STAGE)].name) },
+};
+const WIND_MODE_ORDER = ["gain", "time", "form"];
+
+function cycleWindMode() {
+  const i = WIND_MODE_ORDER.indexOf(player.fusion.windMode);
+  player.fusion.windMode = WIND_MODE_ORDER[(i + 1) % WIND_MODE_ORDER.length];
+  player.fusion.windValue = WIND_MODES[player.fusion.windMode].values[1] || WIND_MODES[player.fusion.windMode].values[0];
+}
+
+function cycleWindValue() {
+  const vals = WIND_MODES[player.fusion.windMode].values;
+  const i = vals.indexOf(player.fusion.windValue);
+  player.fusion.windValue = vals[(i + 1) % vals.length];
+}
+
+/** Is it time for Auto Stellar Wind (by the chosen mode)? */
+function autoWindReady() {
+  if (!tmp.fusion.canPrestige) return false;
+  const v = player.fusion.windValue;
+  if (player.fusion.windMode === "time") return player.fusion.windTime >= v;
+  if (player.fusion.windMode === "form") return evo() >= v;
+  return tmp.fusion.prestigeGain.gte(totalStardust().mul(v / 100).max(1));
+}
+
 // ---------- Layer ----------
 
 const shellBuyables = {};
@@ -350,7 +402,9 @@ registerLayer({
     totalStardust: E(0), // all Stardust ever earned; boosts use this so spending never weakens them
     elements: Object.fromEntries(CHAIN.map((c) => [c.sym, E(0)])),
     discovered: ["H"],
-    windTarget: RED_DWARF_STAGE, // Auto Stellar Wind waits until you are at least this form
+    windMode: "gain", // Auto Stellar Wind: "gain" (gain ≥ value% of total Stardust), "time" (every value seconds), "form" (at form ≥ value)
+    windValue: 10,
+    windTime: 0, // seconds since the last Stellar Wind
   }),
 
   resources: () => [
@@ -370,10 +424,11 @@ registerLayer({
       if (evo() < RED_DWARF_STAGE) return E(0);
       return amountOf("He").div(1e25).pow(0.25).mul(stardustMult()).floor();
     },
-    canReset: () => evo() >= RED_DWARF_STAGE && tmp.fusion.prestigeGain.gte(1),
+    canReset: () => !passiveResets() && evo() >= RED_DWARF_STAGE && tmp.fusion.prestigeGain.gte(1),
+    passive: () => (passiveResets() ? 1 : 0),
     requirementText: () => "Become a Red Dwarf (a true star) to release a Stellar Wind",
     buttonText: () =>
-      tmp.fusion.canPrestige ? "Stellar Wind: +" + amountText("fusion", tmp.fusion.prestigeGain) : "Stellar Wind",
+      passiveResets() ? "Stellar Winds blow on their own" : tmp.fusion.canPrestige ? "Stellar Wind: +" + amountText("fusion", tmp.fusion.prestigeGain) : "Stellar Wind",
     infoText: () =>
       evo() >= RED_DWARF_STAGE
         ? "Blow your gas back into space. A new generation is born from your Stardust."
@@ -382,13 +437,15 @@ registerLayer({
     keep: (layer) => {
       if (layer === "accretion" && hasMilestone("fusion", "w2")) return ["upgrades"];
       if (layer === "collision" && hasMilestone("fusion", "w4")) return ["upgrades"];
+      if (layer === "atmosphere" && hasMilestone("fusion", "w3")) return ["upgrades"];
       return [];
     },
     onReset: (gain) => {
+      player.fusion.windTime = 0;
       player.fusion.totalStardust = player.fusion.totalStardust.add(gain);
       // Elements fly away with the wind (12 winds: keep 10%)
       // (born in a Star Map region, far from home, you keep none)
-      const keep = currentRegion() ? 0 : hasUpgrade("fusion", 11) ? 0.25 : hasMilestone("fusion", "w9") ? 0.1 : 0;
+      const keep = currentRegion() ? (refined("B") ? 0.1 : 0) : (hasUpgrade("fusion", 11) ? 0.25 : hasMilestone("fusion", "w9") ? 0.1 : 0) + (hasSystemBadge(1) ? 0.1 : 0) + (refined("O") ? 0.1 : 0); // + Neptune badge, Oxygen-16; Boron Lattice in regions
       // The core stays: Magnesium, Silicon and Iron are never blown away
       for (const c of CHAIN) if (!c.late) player.fusion.elements[c.sym] = player.fusion.elements[c.sym].mul(keep);
       // Your collision count is reset too; milestones give some collisions back for free
@@ -396,6 +453,7 @@ registerLayer({
       const [stage, mass] = hasMilestone("fusion", "w7") && !currentRegion() ? [PLANET_STAGE, STAGES[PLANET_STAGE].mass] : collisionStart();
       player.evolution.stage = E(stage);
       player.accretion.mass = E(mass);
+      if (!currentRegion()) jupiterStart();
     },
   },
 
@@ -405,7 +463,8 @@ registerLayer({
       desc: () => "Squeeze your core. Core temperature ×" + format(compressionBase(), 2) + " per level.",
       noSpend: () => hasMilestone("fusion", "w10"),
       costStart: 2,
-      costGrowth: 4,
+      costGrowth: () => (refined("H") ? 3 : 4), // Proton–Proton Chain (refinement)
+      free: () => starspotLevels().add(treeHas("x2") ? 5 : 0), // Starspots (Interior perk), Hot Bubble (tree)
       effect: (amount) => Decimal.pow(compressionBase(), amount),
       effectDisplay: (eff) => formatMult(eff),
     },
@@ -451,9 +510,9 @@ registerLayer({
     8: {
       title: "Onion Shells",
       icon: "◍",
-      desc: "All fusion ×(number of discovered elements).",
+      desc: "All fusion ×(1 + discovered elements ÷ 4).",
       cost: E(1e4),
-      effect: () => E(player.fusion.discovered.length),
+      effect: () => E(1 + player.fusion.discovered.length / 4),
       effectDisplay: (eff) => formatMult(eff),
     },
     9: {
@@ -484,9 +543,9 @@ registerLayer({
       unlockText: () => "Reach 12 Star Map completions to unlock (" + totalCompletions() + "/12).",
     },
     12: {
-      title: "Protostellar Jets",
-      icon: "⇶",
-      desc: "Jets carry your next generation far away. Auto Stellar Wind travels to the Star Map region with the fewest completions.",
+      title: "Stellar Pulsations",
+      icon: "≋",
+      desc: () => "Every fully mapped region makes your star pulse. Stardust gain ×2 per Star Map region at 5/5. Currently " + formatMult(Decimal.pow(2, REGION_IDS.filter((id) => completions(id) >= MAX_REGION_COMPLETIONS).length)) + ".",
       cost: E(2e7),
       unlocked: () => totalCompletions() >= 20,
       unlockText: () => "Reach 20 Star Map completions to unlock (" + totalCompletions() + "/20).",
@@ -497,17 +556,18 @@ registerLayer({
   milestones: {
     w1: { req: () => generations() >= 1, reqText: "1 Stellar Wind", desc: "Start every generation with 5 collisions (and their milestones)." },
     w2: { req: () => generations() >= 2, reqText: "2 Stellar Winds", desc: "Keep Accretion upgrades on Stellar Wind." },
+    w5: { req: () => generations() >= 2, reqText: "2 Stellar Winds", desc: "Auto Evolve works past Planet." },
+    w6: { req: () => generations() >= 2, reqText: "2 Stellar Winds", desc: "Unlock Auto Climb and auto-buyers for every Atmosphere building. They no longer spend gas." },
     wg: { req: () => generations() >= 2, reqText: "2 Stellar Winds", desc: () => "Enriched Winds: each Stellar Wind leaves richer gas behind. Gas gain +" + format(ELEM.windGas * 100, 0) + "% per Stellar Wind, up to " + formatMult(ELEM.windGasCap, 0) + ". Currently " + formatMult(windGasMult()) + "." },
-    w3: { req: () => generations() >= 3, reqText: "3 Stellar Winds", desc: "Start every generation with 12 collisions." },
+    w3: { req: () => generations() >= 3, reqText: "3 Stellar Winds", desc: "Start every generation with 12 collisions. Keep Atmosphere upgrades on Stellar Wind." },
+    wp: { req: () => generations() >= 3, reqText: "3 Stellar Winds", desc: "Collisions happen on their own: every second you gain 100% of the Shards a collision would give, and +1 collision. Collide is no longer needed." },
     w4: { req: () => generations() >= 4, reqText: "4 Stellar Winds", desc: "Keep Shard upgrades on Stellar Wind. Unlock Auto Shard Upgrades." },
-    w5: { req: () => generations() >= 5, reqText: "5 Stellar Winds", desc: "Auto Evolve works past Planet." },
-    w6: { req: () => generations() >= 6, reqText: "6 Stellar Winds", desc: "Unlock Auto Climb and auto-buyers for every Atmosphere building. They no longer spend gas." },
-    w7: { req: () => generations() >= 8, reqText: "8 Stellar Winds", desc: "Start every generation as a Planet." },
-    w8: { req: () => generations() >= 10, reqText: "10 Stellar Winds", desc: "Unlock Auto Compression, Auto Shells and Auto Atmosphere Upgrades." },
-    w9: { req: () => generations() >= 12, reqText: "12 Stellar Winds", desc: "Keep 10% of your elements on Stellar Wind." },
-    w10: { req: () => generations() >= 15, reqText: "15 Stellar Winds", desc: "Unlock Auto Stellar Wind. Pick the star form it waits for; it blows once that gives at least 10% of your total Stardust. Shells and Compression no longer spend Stardust." },
-    w11: { req: () => generations() >= 20, reqText: "20 Stellar Winds", desc: "Collisions also restart you as a Planet." },
-    w12: { req: () => generations() >= 25, reqText: "25 Stellar Winds", desc: () => "Every discovered element gives ×1.1 Stardust. Currently " + formatMult(Decimal.pow(1.1, player.fusion.discovered.length)) + "." },
+    w7: { req: () => generations() >= 6, reqText: "6 Stellar Winds", desc: "Start every generation as a Planet." },
+    w8: { req: () => generations() >= 8, reqText: "8 Stellar Winds", desc: "Unlock Auto Compression and Auto Shells." },
+    w10: { req: () => generations() >= 8, reqText: "8 Stellar Winds", desc: "Unlock Auto Stellar Wind (choose when it blows). Shells and Compression no longer spend Stardust." },
+    w9: { req: () => generations() >= 10, reqText: "10 Stellar Winds", desc: "Keep 10% of your elements on Stellar Wind." },
+    w11: { req: () => generations() >= 12, reqText: "12 Stellar Winds", desc: "Gas gain ×3." },
+    w12: { req: () => generations() >= 15, reqText: "15 Stellar Winds", desc: () => "Every discovered element gives ×1.1 Stardust. Currently " + formatMult(Decimal.pow(1.1, player.fusion.discovered.length)) + "." },
   },
 
   automation: {
@@ -526,16 +586,11 @@ registerLayer({
     },
     wind: {
       name: "Auto Stellar Wind",
-      unlocked: () => hasMilestone("fusion", "w10"),
+      unlocked: () => hasMilestone("fusion", "w10") && !passiveResets(),
       run: () => {
         updateTemp();
         if (currentRegion()) return; // never blow away a Star Map run
-        if (evo() < player.fusion.windTarget) return;
-        if (!tmp.fusion.canPrestige || tmp.fusion.prestigeGain.lt(totalStardust().mul(0.1).max(1))) return;
-        // Protostellar Jets: travel to the next region instead of staying home
-        const next = hasUpgrade("fusion", 12) && starmapUnlocked() ? nextAutoRegion() : "";
-        if (next) travel(next);
-        else doPrestige("fusion");
+        if (autoWindReady()) doPrestige("fusion");
       },
     },
   },
@@ -546,6 +601,9 @@ registerLayer({
   },
 
   tick(dt) {
+    player.fusion.windTime += dt;
+    // Passive Stellar Winds: the Stardust also counts towards your total
+    if (passiveResets() && tmp.fusion.prestigeGain.gt(0)) player.fusion.totalStardust = player.fusion.totalStardust.add(tmp.fusion.prestigeGain.mul(dt));
     if (!fusionUnlocked()) return;
     // Fuse along the chain: each element grows from the one before it
     for (const c of CHAIN) {
@@ -564,22 +622,20 @@ registerLayer({
   },
 
   // Auto Stellar Wind target picker (shown once the automation is unlocked)
+  // Auto Stellar Wind settings: a mode button and a value button (IMR-style "amount / time" modes)
   buildExtra: (container) => {
-    const btn = h("button", { class: "auto-btn on", onclick: () => {
-      const t = player.fusion.windTarget;
-      player.fusion.windTarget = t >= MAX_STAGE ? RED_DWARF_STAGE : t + 1;
-    } });
-    const box = h("div", { class: "auto-box" }, btn);
+    const mode = h("button", { class: "auto-btn on", onclick: () => cycleWindMode() });
+    const value = h("button", { class: "auto-btn on", onclick: () => cycleWindValue() });
+    const box = h("div", { class: "auto-box" }, mode, value);
     container.insertBefore(box, container.querySelector(".auto-box") || container.children[2] || null);
-    return { box, btn };
+    return { box, mode, value };
   },
   updateExtra: (r) => {
     setVisible(r.box, isAutoUnlocked("fusion", "wind"));
-    setText(r.btn, "Auto Stellar Wind waits for: " + STAGES[player.fusion.windTarget].name);
+    setText(r.mode, "Auto Stellar Wind mode: " + WIND_MODES[player.fusion.windMode].name);
+    setText(r.value, WIND_MODES[player.fusion.windMode].text(player.fusion.windValue));
   },
 
-  mainSubtabName: "Core",
-  subtabs: [{ id: "table", name: "Periodic Table", build: buildPeriodicTable }],
 });
 
 // ---------- Periodic Table sub-tab ----------
@@ -589,6 +645,7 @@ registerLayer({
  * you have, and the list below says what each one does and what you need for the next.
  */
 function buildPeriodicTable(panel) {
+  const refineUpd = buildRefineSection(panel);
   const count = h("span", { class: "amount" });
   const temp = h("span");
   panel.append(h("div", { class: "layer-header" }, "Elements found: ", count, " of " + OBTAINABLE.length + ". Core temperature: ", temp));
@@ -634,6 +691,7 @@ function buildPeriodicTable(panel) {
   const STATE_TEXT = { fusing: "Fusing", found: "Found", todo: "Not yet" };
 
   return function update() {
+    refineUpd();
     const showFull = typeof kilonovaUnlocked === "function" && kilonovaUnlocked();
     setVisible(grid, !showFull);
     setVisible(later, !showFull);

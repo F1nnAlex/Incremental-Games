@@ -11,7 +11,7 @@ const CRITICAL_CORE = 10 * EARTH_MASS; // a core this big has cleared its orbit 
 
 // Balance knobs, kept together so they are easy to tune
 const ATMO = {
-  base: 6e-4, // M⊕/s of gas with no buildings
+  base: 4e-4, // M⊕/s of gas with no buildings
   isolation: 3, // above the critical core mass, core gain × (critical / core)^isolation
   envMult: 1.25, envGrowth: 10, // Gas Envelope: ×1.25 gas per level, cost ×10 per level
   deckMult: 1.5, deckGrowth: 20, // Cloud Decks: ×1.5 gas per level, cost ×20 per level (Cold Trap: ×1.75)
@@ -44,6 +44,11 @@ function atmosphereUnlocked() {
 /** Still gathering an envelope? (Stops once you ignite as a star.) */
 function atmosphereActive() {
   return atmosphereUnlocked() && evo() < RED_DWARF_STAGE;
+}
+
+/** Jovian Field (Interior perk): the ladder needs 25% less gas. */
+function atmoReqMult() {
+  return hasFieldPerk(4) ? 0.75 : 1;
 }
 
 function atmoLevel() {
@@ -134,10 +139,10 @@ registerLayer({
   prestige: {
     type: "rank",
     resource: () => player.atmosphere.gas,
-    req: (n) => E(n.toNumber() >= MAX_ATMO ? Infinity : ATMO_LEVELS[n.toNumber() + 1][1]),
+    req: (n) => E(n.toNumber() >= MAX_ATMO ? Infinity : ATMO_LEVELS[n.toNumber() + 1][1] * atmoReqMult()),
     bulk: (gas) => {
       let n = 0;
-      while (n < MAX_ATMO && gas.gte(ATMO_LEVELS[n + 1][1])) n++;
+      while (n < MAX_ATMO && gas.gte(ATMO_LEVELS[n + 1][1] * atmoReqMult())) n++;
       return E(n);
     },
     canBuyMax: () => true,
@@ -227,7 +232,7 @@ registerLayer({
     3: {
       title: "Hydrogen Envelope",
       icon: "H₂",
-      desc: "Gas presses down on your core. The mass gain softcap is weaker (^0.5 → ^0.55).",
+      desc: "A thick hydrogen envelope keeps your future core hot. Core temperature ×1.5 (once you burn as a star).",
       cost: E(1500),
       currency: "gas",
       costText: (x) => formatGas(x),
@@ -255,7 +260,7 @@ registerLayer({
     if (hasUpgrade("atmosphere", 1)) g = g.mul(upgradeEffect("atmosphere", 1));
     if (hasMilestone("evolution", "e10")) g = g.mul(3);
     g = g.mul(fusionEnvelopeMult());
-    // Star Map, Starless Void: rule ÷100, reward ×(c+1)²
+    // Star Map, Starless Void: rule ÷10 (×1.7 per tier), reward ×(c+1)²
     g = g.mul(E(rewardLevel("void") + 1).pow(2));
     g = g.mul(supernovaGasMult()); // Update 3: Black Hole remnant, Reverse Shock
     if (ruleActive("void")) g = g.div(ruleVoidDiv());
