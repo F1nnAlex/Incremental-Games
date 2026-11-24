@@ -12,10 +12,13 @@ function getStartPlayer() {
     lastTick: Date.now(),
     tab: "forage",
     buyAmount: "1", // "1", "10" or "max"
+    conquestTab: "realms",
     unlocked: Object.fromEntries(LAYER_ORDER.map((id) => [id, false])),
     auto: getAutomationDefaults(),
     seen: [], // tabs opened at least once; new ones get a notification dot
     achievements: [], // ids of unlocked achievements
+    revealed: [], // legendary forms made visible (survives every reset)
+    evolutions: [], // legendary forms ever reached (survives every reset)
     stats: {
       timePlayed: 0, // seconds
       feeds: 0, // hand feeds, all time

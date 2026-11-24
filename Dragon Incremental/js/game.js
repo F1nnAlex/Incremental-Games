@@ -15,12 +15,21 @@ function buildHeader() {
   const rate = document.getElementById("headerRate");
   const scales = document.getElementById("headerScales");
   const scalesBox = document.getElementById("headerScalesBox");
+  const embers = document.getElementById("headerEmbers");
+  const embersBox = document.getElementById("headerEmbersBox");
+  const gold = document.getElementById("headerGold");
+  const goldBox = document.getElementById("headerGoldBox");
   return () => {
     setText(food, formatFood(player.forage.food));
     setText(rate, "+" + format(tmp.forage.rate) + " / s");
     const y = player.youngling;
     setVisible(scalesBox, y.hatched);
     setText(scales, formatWhole(y.scales));
+    const b = player.bloodline;
+    setVisible(embersBox, b.total.gt(0) || generations() > 0 || realms() > 0);
+    setText(embers, formatWhole(b.embers));
+    setVisible(goldBox, realms() > 0);
+    setText(gold, formatWhole(player.conquest.gold));
   };
 }
 
@@ -29,6 +38,7 @@ let updateHeader = () => {};
 function afterLoad() {
   tmp = {};
   updateTemp();
+  checkReveals(); // backfill reveals for saves from before Conquest
   buildTabs();
   updateHeader = buildHeader();
   buildStage(document.getElementById("stage"));

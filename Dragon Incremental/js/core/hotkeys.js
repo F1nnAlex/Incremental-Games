@@ -6,7 +6,7 @@ const HOTKEYS = [
   { key: "h", label: "H", desc: "Hatch / Molt", fn: () => tmp.youngling.unlocked && requestPrestige("youngling") },
   { key: "m", label: "M", desc: "Buy as many food sources as you can", fn: () => SOURCE_KEYS.forEach((k) => buyN("forage", k, 10000)) },
   { key: "s", ctrl: true, label: "Ctrl+S", desc: "Save", fn: () => saveGame() },
-  { key: "1-6", label: "1–6", desc: "Switch tabs", fn: null },
+  { key: "1-9", label: "1–7", desc: "Switch tabs", fn: null },
 ];
 
 function setupHotkeys() {

@@ -7,6 +7,8 @@ function tabDefs() {
     { id: "forage", name: "Foraging", build: buildForageTab },
     { id: "upgrades", name: "Upgrades", attention: () => anyUpgradeAffordable(), build: buildUpgradeTab },
     { id: "youngling", name: "Dragon", unlocked: () => tmp.youngling.unlocked, attention: () => player.youngling.hatched && Object.keys(LAYERS.youngling.buyables).some((k) => tmp.youngling.buyables[k].unlocked && canBuyBuyable("youngling", k)), build: buildDragonTab },
+    { id: "bloodline", name: "Bloodline", unlocked: () => tmp.bloodline.unlocked, attention: () => !!tmp.bloodline.canPrestige || Object.keys(LAYERS.bloodline.buyables).some((k) => canBuyBuyable("bloodline", k)), build: buildBloodlineTab },
+    { id: "conquest", name: "Conquest", unlocked: () => tmp.conquest.unlocked, attention: () => !!tmp.conquest.canPrestige || Object.keys(LAYERS.conquest.buyables).some((k) => tmp.conquest.buyables[k].unlocked && canBuyBuyable("conquest", k)), build: buildConquestTab },
     { id: "feats", name: "Feats", build: buildFeatsTab },
     { id: "stats", name: "Stats", build: buildStatsTab },
     { id: "options", name: "Options", build: buildOptionsTab },
@@ -128,7 +130,7 @@ function buildRows(layer, keys, container, info) {
       setText(r.level, formatWhole(lvl) + (b.max !== undefined ? " / " + b.max : ""));
       setText(r.effect, info(key));
       const maxed = b.max !== undefined && lvl.gte(b.max);
-      const cur = player[layer][layer === "forage" ? "food" : "scales"];
+      const cur = player[layer][def.currency];
       let cost;
       let label;
       if (maxed) {
@@ -251,6 +253,156 @@ function buildUpgradeTab(panel) {
 
 // ---------- Dragon (growth, Molt, body parts, milestones) ----------
 
+// ---------- Conquest (sub-tabs unlock one at a time: Realms → Hoard → Tribute) ----------
+
+function buildConquestTab(panel) {
+  const def = LAYERS.conquest;
+  const subs = [
+    { id: "realms", name: "Realms", unlocked: () => true },
+    { id: "hoard", name: "Hoard", unlocked: () => realms() >= 2 },
+    { id: "tribute", name: "Tribute", unlocked: () => realms() >= 4 },
+  ];
+  const bar = h("div", { class: "subtabs" });
+  for (const s of subs) {
+    s.btn = h("button", { class: "subtab", onclick: () => (player.conquestTab = s.id) }, s.name);
+    s.panel = h("div", { class: "subpanel" });
+    bar.append(s.btn);
+  }
+  panel.append(bar, ...subs.map((s) => s.panel));
+
+  // ----- Realms: the world map and the Conquer box -----
+  const rp = subs[0].panel;
+  const conquerBtn = h("button", { class: "molt-btn", onclick: () => requestPrestige("conquest") });
+  const conquerInfo = h("div", { class: "molt-info" });
+  const sum = { realms: h("b"), gold: h("b"), next: h("b") };
+  const markers = REALMS.map((r, i) => {
+    const m = h("div", { class: "realm-marker", title: r.name }, h("span", { class: "realm-dot" }, String(i + 1)), h("span", { class: "realm-name" }, r.name));
+    m.style.left = r.x * 100 + "%";
+    m.style.top = r.y * 100 + "%";
+    return m;
+  });
+  const map = h("div", { class: "world-map" }, h("img", { src: "assets/bg/worldmap.jpg", alt: "Map of the world", loading: "lazy" }), ...markers);
+  const boonRows = REALMS.map((r, i) => {
+    const row = h("div", { class: "milestone" }, h("span", { class: "m-req" }, String(i + 1) + " · " + r.name), h("span", { class: "m-desc" }, r.boon));
+    return row;
+  });
+  rp.append(
+    h("h2", {}, "The World"),
+    map,
+    h("div", { class: "dragon-grid" },
+      h("div", { class: "dragon-col" },
+        h("h2", {}, "Conquest"),
+        h("div", { class: "molt-box" }, conquerBtn, conquerInfo),
+        h("div", { class: "summary" },
+          h("div", {}, h("span", {}, "Realms"), sum.realms),
+          h("div", {}, h("span", {}, "Gold"), sum.gold),
+          h("div", {}, h("span", {}, "Next conquest"), sum.next)
+        )
+      ),
+      h("div", { class: "dragon-col" },
+        h("h2", {}, "Realm boons"),
+        h("div", { class: "milestones" }, ...boonRows)
+      )
+    )
+  );
+
+  // ----- Hoard and Tribute: rows like body parts -----
+  const keysOf = (g) => Object.keys(def.buyables).filter((k) => def.buyables[k].group === g);
+  const hp = subs[1].panel;
+  hp.append(h("div", { class: "panel-head" }, h("div", {}, h("h2", {}, "The Hoard"), h("div", { class: "panel-sub" }, "Spend Gold on treasures that strengthen every earlier layer."))));
+  const hoardUpdate = buildRows("conquest", keysOf("hoard"), hp, (k) => def.buyables[k].effectDisplay(buyableEffect("conquest", k)));
+  const tp = subs[2].panel;
+  tp.append(h("div", { class: "panel-head" }, h("div", {}, h("h2", {}, "Tribute"), h("div", { class: "panel-sub" }, "The conquered lands serve you. Each one runs part of the earlier layers for you."))));
+  const tributeUpdate = buildRows("conquest", keysOf("tribute"), tp, (k) => def.buyables[k].effectDisplay(buyableEffect("conquest", k)));
+  const tributeHint = h("div", { class: "hint" });
+  tp.append(tributeHint);
+
+  return () => {
+    const open = subs.filter((s) => s.unlocked());
+    const cur = open.find((s) => s.id === player.conquestTab) || open[0];
+    setVisible(bar, open.length > 1);
+    for (const s of subs) {
+      setVisible(s.btn, s.unlocked());
+      setClass(s.btn, "active", s === cur);
+      setVisible(s.panel, s === cur);
+    }
+    const t = tmp.conquest;
+    const r = REALMS[realms()];
+    setText(conquerBtn, r ? (t.canPrestige ? "Conquer " + r.name + " · +" + formatWhole(t.prestigeGain) + " Gold" : "Conquer " + r.name) : "The world is yours");
+    setClass(conquerBtn, "can", !!t.canPrestige);
+    setText(conquerInfo, def.prestige.requirementText());
+    setText(sum.realms, realms() + " / " + REALMS.length);
+    setText(sum.gold, formatWhole(player.conquest.gold));
+    setText(sum.next, "+" + formatWhole(t.prestigeGain));
+    markers.forEach((m, i) => {
+      setClass(m, "taken", i < realms());
+      setClass(m, "next", i === realms());
+    });
+    boonRows.forEach((row, i) => setClass(row, "reached", i < realms()));
+    if (cur.id === "hoard") hoardUpdate();
+    if (cur.id === "tribute") {
+      tributeUpdate();
+      const hidden = keysOf("tribute").filter((k) => !tmp.conquest.buyables[k].unlocked).length;
+      setVisible(tributeHint, hidden > 0);
+      setText(tributeHint, hidden + " more tribute" + (hidden === 1 ? "" : "s") + " will come as more realms fall.");
+    }
+  };
+}
+
+// ---------- Bloodline (generations, Embers, traits) ----------
+
+function buildBloodlineTab(panel) {
+  const def = LAYERS.bloodline;
+  const layBtn = h("button", { class: "molt-btn", onclick: () => requestPrestige("bloodline") });
+  const layInfo = h("div", { class: "molt-info" });
+  const sum = { gen: h("b"), embers: h("b"), next: h("b") };
+  const left = h("div", { class: "dragon-col" });
+  const right = h("div", { class: "dragon-col" });
+  panel.append(h("div", { class: "dragon-grid" }, left, right));
+  left.append(
+    h("h2", {}, "Bloodline"),
+    h(
+      "p",
+      { class: "stage-info" },
+      "A grown dragon can lay an egg in the old forest nest and pass its fire on. The next generation starts from the egg again, but you keep your Embers, and the traits they buy make every new generation grow up faster."
+    ),
+    h("div", { class: "molt-box" }, layBtn, layInfo),
+    h(
+      "div",
+      { class: "summary" },
+      h("div", {}, h("span", {}, "Generation"), sum.gen),
+      h("div", {}, h("span", {}, "Embers"), sum.embers),
+      h("div", {}, h("span", {}, "Next egg"), sum.next)
+    ),
+    h("h2", {}, "Milestones")
+  );
+  const ms = h("div", { class: "milestones" });
+  const mRows = Object.keys(def.milestones).map((key) => {
+    const m = def.milestones[key];
+    const row = h("div", { class: "milestone" }, h("span", { class: "m-req" }, m.reqText), h("span", { class: "m-desc" }, m.desc));
+    ms.append(row);
+    return [key, row];
+  });
+  left.append(ms);
+
+  const amount = buildAmountPicker();
+  right.append(h("div", { class: "panel-head" }, h("h2", {}, "Traits"), amount.el));
+  const traitUpdate = buildRows("bloodline", Object.keys(def.buyables), right, (key) => def.buyables[key].effectDisplay(buyableEffect("bloodline", key)));
+
+  return () => {
+    const t = tmp.bloodline;
+    setText(layBtn, t.canPrestige ? "Lay an egg for +" + formatWhole(t.prestigeGain) + " Embers" : "Lay an egg");
+    setClass(layBtn, "can", !!t.canPrestige);
+    setText(layInfo, def.prestige.requirementText());
+    setText(sum.gen, formatWhole(generations() + 1));
+    setText(sum.embers, formatWhole(player.bloodline.embers) + " (" + formatWhole(player.bloodline.total) + " earned)");
+    setText(sum.next, "+" + formatWhole(t.prestigeGain));
+    amount.update();
+    traitUpdate();
+    for (const [key, row] of mRows) setClass(row, "reached", !!t.milestones[key]);
+  };
+}
+
 function buildDragonTab(panel) {
   const def = LAYERS.youngling;
 
@@ -263,9 +415,10 @@ function buildDragonTab(panel) {
         { class: "node" },
         h("div", { class: "node-pic" }, h("img", { src: s.img, alt: "", loading: "lazy" })),
         h("div", { class: "node-name" }, s.name),
-        h("div", { class: "node-req" }, i === 0 ? "Start" : i === 1 ? "Hatch" : "Molt " + (s.at - 1))
+        h("div", { class: "node-req" }, i === 0 ? "Start" : i === 1 ? "Hatch" : "Molt " + (s.at - 1) + (s.gateText ? " · " + s.gateText : ""))
       ),
     };
+    if (s.legendary) n.el.classList.add("legendary");
     track.append(n.el);
     return n;
   });
@@ -284,7 +437,11 @@ function buildDragonTab(panel) {
   };
 
   const amount = buildAmountPicker();
-  panel.append(
+  // Two columns on a wide panel: growth + Molt on the left, body + milestones on the right
+  const left = h("div", { class: "dragon-col" });
+  const right = h("div", { class: "dragon-col" });
+  panel.append(h("div", { class: "dragon-grid" }, left, right));
+  left.append(
     h("h2", {}, "Growth"),
     track,
     stageInfo,
@@ -295,17 +452,17 @@ function buildDragonTab(panel) {
       h("div", {}, h("span", {}, "Scales"), sum.scales),
       h("div", {}, h("span", {}, "Size bonus"), sum.size),
       h("div", {}, h("span", {}, "Stage bonus"), sum.stage)
-    ),
-    h("div", { class: "panel-head" }, h("h2", {}, "Body"), amount.el)
+    )
   );
-  const bodyUpdate = buildRows("youngling", Object.keys(def.buyables), panel, (key) => {
+  right.append(h("div", { class: "panel-head" }, h("h2", {}, "Body"), amount.el));
+  const bodyUpdate = buildRows("youngling", Object.keys(def.buyables), right, (key) => {
     const b = def.buyables[key];
     return b.effectDisplay(buyableEffect("youngling", key));
   });
   const glandHint = h("div", { class: "hint" }, "The Fire Gland grows once your dragon is a Youngling.");
-  panel.append(glandHint);
+  right.append(glandHint);
 
-  panel.append(h("h2", {}, "Milestones"));
+  right.append(h("h2", {}, "Milestones"));
   const ms = h("div", { class: "milestones" });
   const mRows = Object.keys(def.milestones).map((key) => {
     const m = def.milestones[key];
@@ -313,15 +470,20 @@ function buildDragonTab(panel) {
     ms.append(row);
     return [key, row];
   });
-  panel.append(ms);
+  right.append(ms);
 
   return () => {
     const y = player.youngling;
     const si = stageIndex();
     nodes.forEach((n, i) => {
+      const s = STAGES[i];
+      // Legendary forms stay completely hidden until revealed; silhouettes until first reached
+      setVisible(n.el, isRevealed(s));
       setClass(n.el, "done", i < si);
       setClass(n.el, "current", i === si);
-      setClass(n.el, "locked", i > si);
+      // Forms you have ever raised keep their picture; only never-reached forms are silhouettes
+      const known = s.legendary ? hasEvolved(s) : generations() > 0 || realms() > 0;
+      setClass(n.el, "locked", i > si && !known);
     });
     const next = nextStage();
     setText(stageInfo, currentStage().desc + (next ? " Next: " + next.name + " at " + next.place + "." : ""));
@@ -337,7 +499,9 @@ function buildDragonTab(panel) {
     setText(sum.stage, formatMult(stageMult(), 0));
     amount.update();
     bodyUpdate();
-    setVisible(glandHint, y.hatched && stageIndex() < 2);
+    // Hint at the next body part: the Fire Gland (Youngling), then Fire Breath (Juvenile)
+    setVisible(glandHint, y.hatched && stageIndex() < 3);
+    setText(glandHint, stageIndex() < 2 ? "The Fire Gland grows once your dragon is a Youngling." : "Fire Breath grows once your dragon is a Juvenile.");
     for (const [key, row] of mRows) setClass(row, "reached", !!tmp.youngling.milestones[key]);
   };
 }
@@ -354,8 +518,12 @@ function buildFeatsTab(panel) {
   });
   panel.append(h("div", { class: "panel-head" }, h("div", {}, h("h2", {}, "Feats"), count)), grid);
   return () => {
-    setText(count, player.achievements.length + " of " + ACHIEVEMENTS.length + " · all Food " + formatMult(achievementMult()));
-    for (const [a, tile] of tiles) setClass(tile, "done", hasAchievement(a.id));
+    const shown = ACHIEVEMENTS.filter((a) => !a.hidden || !a.hidden() || hasAchievement(a.id)).length;
+    setText(count, player.achievements.length + " of " + shown + " · all Food " + formatMult(achievementMult()));
+    for (const [a, tile] of tiles) {
+      setVisible(tile, !a.hidden || !a.hidden() || hasAchievement(a.id)); // feats for hidden forms stay hidden too
+      setClass(tile, "done", hasAchievement(a.id));
+    }
   };
 }
 
@@ -383,6 +551,10 @@ function buildStatsTab(panel) {
     setText(row("scales", "Scales earned"), formatWhole(player.youngling.total));
     setText(row("molts", "Molts"), formatWhole(molts()));
     setText(row("length", "Length"), dragonLength().toFixed(1) + " m");
+    if (generations() > 0 || realms() > 0) setText(row("gens", "Generation"), formatWhole(generations() + 1));
+    if (realms() > 0) setText(row("realms", "Realms conquered"), realms() + " / " + REALMS.length);
+    if (realms() > 0) setText(row("gold", "Gold earned"), formatWhole(player.conquest.total));
+    if (player.evolutions.length) setText(row("forms", "Legendary forms"), player.evolutions.length + " / 4");
     const first = s.first.youngling;
     setText(row("hatch", "Hatched after"), first ? formatTime(first) : "Not yet");
   };

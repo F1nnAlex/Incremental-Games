@@ -13,11 +13,16 @@ const LOCATIONS = {
   valley: { img: "assets/bg/valley.jpg", ground: 0.86, x: 0.48 },
   cliffs: { img: "assets/bg/cliffs.jpg", ground: 0.86, x: 0.5 },
   peak: { img: "assets/bg/peak.jpg", ground: 0.7, x: 0.5 },
+  // Legendary places (ground lines measured on each picture)
+  storm: { img: "assets/bg/storm.jpg", ground: 0.84, x: 0.5 },
+  ruins: { img: "assets/bg/ruins.jpg", ground: 0.86, x: 0.5 },
+  citadel: { img: "assets/bg/citadel.jpg", ground: 0.86, x: 0.5 },
+  eclipse: { img: "assets/bg/eclipse.jpg", ground: 0.84, x: 0.5 },
 };
 const BG_ASPECT = 1920 / 1072;
 
 // Creature height as a fraction of the stage height, per stage (the egg grows with incubation)
-const STAGE_SIZE = { hatchling: 0.3, youngling: 0.42, juvenile: 0.54, adult: 0.66 };
+const STAGE_SIZE = { hatchling: 0.3, youngling: 0.42, juvenile: 0.54, adult: 0.66, elder: 0.7, ancient: 0.74, sovereign: 0.76, worldeater: 0.8 };
 
 const STAGE = { root: null, hud: {}, bgKey: "", imgKey: "", lastFloat: 0 };
 
@@ -60,6 +65,8 @@ function stagePicture() {
     const img = inc >= 0.9 ? "assets/egg/egg_breaking.png" : inc >= 0.5 ? "assets/egg/egg_cracked.png" : "assets/egg/egg.png";
     return { img, height: 0.12 + 0.12 * inc, bg: s.bg };
   }
+  // From the Youngling on, each stage is one integrated scene (dragon painted into its place)
+  if (s.scene) return { scene: s.scene, bg: s.bg };
   // Within a stage the dragon still grows a little with total Scales
   const extra = Math.min(0.12, 0.012 * log2p(player.youngling.total));
   return { img: s.img, height: STAGE_SIZE[s.id] * (1 + extra), bg: s.bg };
@@ -73,10 +80,15 @@ function crossfade(a, b, apply) {
   hide.classList.remove("on");
 }
 
+/** key: a LOCATIONS id, or the path of an integrated scene image. */
 function setBackdrop(key) {
   if (key === STAGE.bgKey) return;
   STAGE.bgKey = key;
-  crossfade(STAGE.hud.bgA, STAGE.hud.bgB, (el) => (el.style.backgroundImage = "url('" + LOCATIONS[key].img + "')"));
+  const url = LOCATIONS[key] ? LOCATIONS[key].img : key;
+  crossfade(STAGE.hud.bgA, STAGE.hud.bgB, (el) => {
+    el.style.backgroundImage = "url('" + url + "')";
+    el.classList.toggle("scene", !LOCATIONS[key]);
+  });
 }
 
 function setCreatureImage(src) {
@@ -90,6 +102,11 @@ function placeCreature() {
   const root = STAGE.root;
   if (!root || !player) return;
   const pic = stagePicture();
+  setVisible(STAGE.hud.creature, !pic.scene);
+  if (pic.scene) {
+    setVisible(STAGE.hud.rim, false);
+    return;
+  }
   const loc = LOCATIONS[pic.bg];
   const w = root.clientWidth;
   const hgt = root.clientHeight;
@@ -153,6 +170,29 @@ function stageEvent(name, data) {
         " Scales. Spend them on its body in the Dragon tab. Each Molt sheds old skin for more Scales, and enough Molts make it grow up and move on to new places.",
       buttons: [{ label: "Grow it", action: () => showTab("youngling") }, { label: "Keep feeding" }],
     });
+  } else if (name === "generation") {
+    showModal({
+      title: "Generation " + (generations() + 1),
+      art: '<img class="modal-portrait egg" src="assets/egg/egg.png" alt="">',
+      text:
+        "Your dragon lays an egg in the old forest nest and flies off into legend. You got " + formatWhole(data.gain) +
+        " Embers. Spend them on Bloodline traits so this generation grows up faster.",
+      buttons: [{ label: "Choose traits", action: () => showTab("bloodline") }, { label: "Feed the egg" }],
+    });
+  } else if (name === "conquest") {
+    const r = REALMS[data.realm - 1];
+    const phase =
+      data.realm === 2 ? " The Hoard is open: spend your Gold in the Conquest tab." :
+      data.realm === 4 ? " The conquered lands now pay Tribute: servants who run your earlier layers for you." : "";
+    showModal({
+      title: r.name + " has fallen",
+      art: '<img class="modal-map" src="assets/bg/worldmap.jpg" alt="">',
+      text: "You got " + formatWhole(data.gain) + " Gold. New boon: " + r.boon + phase + " A new egg waits in the forest.",
+      buttons: [{ label: "To the map", action: () => showTab("conquest") }, { label: "Feed the egg" }],
+    });
+  } else if (name === "molt" && data.grew && s.legendary) {
+    // The first time is the big Evolution reveal (from checkEvolution); later times just a note
+    if (hasEvolved(s)) notify("Your dragon grew into the " + s.name + " again");
   } else if (name === "molt" && data.grew) {
     showModal({
       title: "It grew into a " + s.name,
@@ -171,13 +211,13 @@ function updateStage() {
   const hud = STAGE.hud;
   if (!hud.feed) return;
   const pic = stagePicture();
-  setBackdrop(pic.bg);
-  setCreatureImage(pic.img);
+  setBackdrop(pic.scene || pic.bg);
+  if (pic.img) setCreatureImage(pic.img);
   placeCreature();
 
   const s = currentStage();
   const hatched = player.youngling.hatched;
-  setText(hud.place, s.place);
+  setText(hud.place, s.place + (generations() > 0 ? " · Generation " + (generations() + 1) : ""));
   setText(hud.name, s.name);
   const inc = incubation();
   hud.barFill.style.width = (inc * 100).toFixed(1) + "%";
@@ -190,4 +230,37 @@ function updateStage() {
   const canP = !!(tmp.youngling && tmp.youngling.unlocked && tmp.youngling.canPrestige);
   setVisible(hud.prestige, canP);
   if (canP) setText(hud.prestige, (hatched ? "Molt" : "Hatch") + " · +" + formatWhole(tmp.youngling.prestigeGain) + " Scales");
+}
+
+// ---------- The Evolution reveal (first time a legendary form is reached) ----------
+
+function showEvolutionReveal(s) {
+  const old = document.querySelector(".evo-reveal");
+  if (old) old.remove();
+  const bonus = h("div", { class: "evo-bonus" }, s.desc);
+  const el = h(
+    "div",
+    { class: "evo-reveal", role: "dialog", "aria-label": "Evolution: " + s.name },
+    h("div", { class: "evo-bg" }),
+    h("div", { class: "evo-shade" }),
+    h("img", { class: "evo-dragon", src: s.img, alt: "" }),
+    h(
+      "div",
+      { class: "evo-card" },
+      h("div", { class: "evo-kicker" }, "Evolution"),
+      h("div", { class: "evo-title" }, s.name),
+      h("div", { class: "evo-place" }, s.place),
+      h("p", { class: "evo-lore" }, s.lore),
+      bonus,
+      h("button", { class: "evo-continue", onclick: () => { el.classList.add("out"); setTimeout(() => el.remove(), 600); } }, "Continue")
+    )
+  );
+  el.querySelector(".evo-bg").style.backgroundImage = "url('" + (s.scene || LOCATIONS[s.bg].img) + "')";
+  if (s.scene) {
+    // The whole integrated scene, framed, over a blurred copy of itself
+    el.classList.add("has-scene");
+    el.querySelector(".evo-dragon").src = s.scene;
+  }
+  document.body.append(el);
+  requestAnimationFrame(() => el.classList.add("in"));
 }

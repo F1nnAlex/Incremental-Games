@@ -15,6 +15,14 @@ const ACHIEVEMENTS = [
   { id: "juvenile", name: "Cliff Dweller", desc: "Grow into a Juvenile.", req: () => stageIndex() >= 3 },
   { id: "billion", name: "Bottomless", desc: "Have 1e9 Food.", req: () => player.forage.food.gte(1e9) },
   { id: "adult", name: "Lord of the Peak", desc: "Grow into an Adult.", req: () => stageIndex() >= 4 },
+  { id: "gen1", name: "A New Generation", desc: "Lay an egg and pass on the flame.", req: () => generations() >= 1 },
+  { id: "gen5", name: "Dynasty", desc: "Reach the 5th generation after the first.", req: () => generations() >= 5 },
+  { id: "elder", name: "Stormborn", desc: "Evolve into an Elder Dragon.", req: () => player.evolutions.includes("elder"), hidden: () => !player.revealed.includes("elder") },
+  { id: "realm1", name: "First Conquest", desc: "Conquer a realm.", req: () => realms() >= 1, hidden: () => !player.revealed.includes("elder") },
+  { id: "ancient", name: "Older Than Kings", desc: "Evolve into an Ancient Wyrm.", req: () => player.evolutions.includes("ancient"), hidden: () => !player.revealed.includes("ancient") },
+  { id: "sovereign", name: "Crowned in Fire", desc: "Evolve into a Dragon Sovereign.", req: () => player.evolutions.includes("sovereign"), hidden: () => !player.revealed.includes("sovereign") },
+  { id: "worldeater", name: "Eclipse", desc: "Evolve into the World-Eater.", req: () => player.evolutions.includes("worldeater"), hidden: () => !player.revealed.includes("worldeater") },
+  { id: "realm7", name: "Lord of the World", desc: "Conquer all seven realms.", req: () => realms() >= 7, hidden: () => !player.revealed.includes("ancient") },
 ];
 
 function hasAchievement(id) {

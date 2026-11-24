@@ -11,8 +11,8 @@ const MOLT_FACTORS = [8, 8, 20, 15, 12, 12, 5, 4, 3];
 /** Food needed this run for the next Hatch / Molt. */
 function growthReq() {
   let r = HATCH_REQ;
-  for (let k = 0; k < molts(); k++) r = r.mul(MOLT_FACTORS[k] || 5);
-  return r;
+  for (let k = 0; k < molts(); k++) r = r.mul(MOLT_FACTORS[k] || 3); // past Adult: ×3 per Molt
+  return r.div(quickHatchDiv()).div(conquestReqDiv()); // Bloodline: Quick Hatch, Conquest: Riverlands
 }
 
 // ---------- Feeding ----------
@@ -53,7 +53,10 @@ function sourceMult() {
   m = m.mul(achievementMult());
   m = m.mul(hornMult());
   m = m.mul(glandMult());
+  m = m.mul(breathMult()); // Fire Breath (from the Juvenile stage)
   m = m.mul(stageMult());
+  m = m.mul(appetiteMult()); // Bloodline: Hearty Appetite
+  m = m.mul(conquestFoodMult()); // Conquest: realms and the Hoard
   if (hasUpgrade("forage", "warmnest")) m = m.mul(1.5);
   if (hasUpgrade("forage", "denmemory")) m = m.mul(upgradeEffect("forage", "denmemory"));
   return m;
@@ -171,7 +174,7 @@ registerLayer({
       icon: "assets/icons/mushrooms.jpg",
       desc: "A fairy ring on the forest floor. It regrows overnight.",
       cost: sourceCost(150, 1.2),
-      unlocked: () => player.forage.total.gte(80) || player.youngling.hatched,
+      unlocked: () => player.forage.total.gte(80) || player.youngling.hatched || realms() >= 1,
       effect: (n) => {
         let p = E(n).mul(3).mul(broodBonus(n));
         if (hasUpgrade("forage", "compost")) p = p.mul(2);
@@ -183,7 +186,7 @@ registerLayer({
       icon: "assets/icons/trout.jpg",
       desc: "A cold, clear stream full of fat trout.",
       cost: sourceCost(4000, 1.22),
-      unlocked: () => player.forage.total.gte(2500) || player.youngling.hatched,
+      unlocked: () => player.forage.total.gte(2500) || player.youngling.hatched || realms() >= 1,
       effect: (n) => {
         let p = E(n).mul(28).mul(broodBonus(n));
         if (hasUpgrade("forage", "spawning")) p = p.mul(3);
@@ -195,7 +198,7 @@ registerLayer({
       icon: "assets/icons/deer.jpg",
       desc: "A worn path through the trees. Something always walks it.",
       cost: sourceCost(120000, 1.25),
-      unlocked: () => player.forage.total.gte(80000) || player.youngling.hatched,
+      unlocked: () => player.forage.total.gte(80000) || player.youngling.hatched || realms() >= 1,
       effect: (n) => {
         let p = E(n).mul(260).mul(broodBonus(n));
         if (hasUpgrade("forage", "saltlick")) p = p.mul(2);
@@ -281,9 +284,9 @@ registerLayer({
   },
 
   automation: {
-    berries: { name: "Auto Brambles", buyable: "berries", interval: () => 1, unlocked: () => molts() >= 2, run: () => buyN("forage", "berries", 100) },
-    mushrooms: { name: "Auto Mushrooms", buyable: "mushrooms", interval: () => 1, unlocked: () => molts() >= 5, run: () => buyN("forage", "mushrooms", 100) },
-    trout: { name: "Auto Trout", buyable: "trout", interval: () => 1, unlocked: () => molts() >= 5, run: () => buyN("forage", "trout", 100) },
-    deer: { name: "Auto Deer", buyable: "deer", interval: () => 1, unlocked: () => molts() >= 12, run: () => buyN("forage", "deer", 100) },
+    berries: { name: "Auto Brambles", buyable: "berries", interval: () => 1, unlocked: () => molts() >= 2 || generations() >= 1, run: () => buyN("forage", "berries", 100) },
+    mushrooms: { name: "Auto Mushrooms", buyable: "mushrooms", interval: () => 1, unlocked: () => molts() >= 5 || generations() >= 1, run: () => buyN("forage", "mushrooms", 100) },
+    trout: { name: "Auto Trout", buyable: "trout", interval: () => 1, unlocked: () => molts() >= 5 || generations() >= 5, run: () => buyN("forage", "trout", 100) },
+    deer: { name: "Auto Deer", buyable: "deer", interval: () => 1, unlocked: () => molts() >= 12 || generations() >= 5, run: () => buyN("forage", "deer", 100) },
   },
 });
