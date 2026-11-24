@@ -19,6 +19,7 @@
     a.game:hover, a.game:focus-visible { border-color: var(--accent); outline: none; }
     .dot { flex: none; width: 46px; height: 46px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff6d8, #ffb347 45%, #b4381c 100%); box-shadow: 0 0 18px rgba(255, 179, 71, 0.45); }
     .dot.egg { border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; width: 38px; margin: 0 4px; background: radial-gradient(circle at 38% 30%, #6e3a34, #2a1214 55%, #080305); box-shadow: 0 0 18px rgba(255, 110, 30, 0.55), inset 0 0 0 1px rgba(255, 140, 60, 0.35); }
+    .dot.star { background: radial-gradient(circle at 42% 40%, #ffffff, #c084fc 42%, #31145c 85%, #080416 100%); box-shadow: 0 0 18px rgba(192, 132, 252, 0.6), inset 0 0 0 1px rgba(226, 212, 255, 0.4); }
     .name { font: 600 1.25rem "Chakra Petch", sans-serif; }
     .desc { color: var(--muted); font-size: 0.95rem; }
     .play { margin-left: auto; font: 600 0.95rem "Chakra Petch", sans-serif; color: var(--accent); white-space: nowrap; }
@@ -43,6 +44,14 @@
         <span>
           <span class="name">Wyrmheart</span><br>
           <span class="desc">Find a cold egg in the forest, feed it, and raise a dragon that grows bigger and travels further with every Molt.</span>
+        </span>
+        <span class="play">Play</span>
+      </a>
+      <a class="game" href="Mythogenesis/" style="--accent: #c084fc">
+        <span class="dot star" aria-hidden="true"></span>
+        <span>
+          <span class="name">Mythogenesis</span><br>
+          <span class="desc">Spark Aether from the void, balance the four Elements in a cycle, weave Constellations across the night, and challenge the Pantheon.</span>
         </span>
         <span class="play">Play</span>
       </a>

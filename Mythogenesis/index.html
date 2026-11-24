@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mythogenesis</title>
+  <meta name="description" content="A cosmic creation-myth incremental: shape Aether into Elements, weave Constellations across the night, bargain with Patron Deities, and shatter the cosmos.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Titillium+Web:wght@400;600&display=swap">
+  <link rel="stylesheet" href="css/style.css?v=2">
+</head>
+<body>
+  <canvas id="sky" aria-hidden="true"></canvas>
+
+  <header id="header">
+    <div class="header-era">
+      <div id="headerOrb" class="orb" aria-hidden="true"></div>
+      <div>
+        <div id="headerEraName" class="header-era-name">Primordial Void</div>
+        <div class="header-era-sub">Mythogenesis</div>
+      </div>
+    </div>
+    <div class="header-main">
+      <div id="headerAmount" class="header-amount">0.00 Aether</div>
+      <div id="headerRate" class="header-rate">+0.00 / s</div>
+    </div>
+    <div class="header-goal">
+      <div id="headerGoalLabel" class="header-goal-label"></div>
+      <div class="progress"><div id="headerGoalFill" class="progress-fill"></div></div>
+    </div>
+    <div id="headerResets" class="header-resets"></div>
+  </header>
+
+  <div class="layout">
+    <nav id="tabBar" aria-label="Game tabs"></nav>
+    <main id="mainCol">
+      <div id="trialBanner" class="region-banner" hidden></div>
+      <div id="tabContainer"></div>
+    </main>
+    <aside id="resources" aria-label="Resources"></aside>
+  </div>
+
+  <div id="modalRoot"></div>
+  <div id="notifications" aria-live="polite"></div>
+
+  <!-- Big numbers -->
+  <script src="lib/break_eternity.js?v=2"></script>
+
+  <!-- Core engine -->
+  <script src="js/core/decimal.js?v=2"></script>
+  <script src="js/core/format.js?v=2"></script>
+  <script src="js/core/scaling.js?v=2"></script>
+  <script src="js/core/layers.js?v=2"></script>
+  <script src="js/core/automation.js?v=2"></script>
+  <script src="js/core/systems.js?v=2"></script>
+  <script src="js/core/player.js?v=2"></script>
+  <script src="js/core/save.js?v=2"></script>
+  <script src="js/core/ui.js?v=2"></script>
+  <script src="js/core/tabs.js?v=2"></script>
+  <script src="js/core/hotkeys.js?v=2"></script>
+  <script src="js/core/loop.js?v=2"></script>
+
+  <!-- Content layers -->
+  <script src="js/content/void.js?v=2"></script>
+  <script src="js/content/elements.js?v=2"></script>
+  <script src="js/content/constellations.js?v=2"></script>
+  <script src="js/content/pantheon.js?v=2"></script>
+  <script src="js/content/ragnarok.js?v=2"></script>
+  <script src="js/content/achievements.js?v=2"></script>
+
+  <!-- Art & Starfield -->
+  <script src="js/art/sky.js?v=2"></script>
+
+  <!-- Start -->
+  <script src="js/game.js?v=2"></script>
+</body>
+</html>

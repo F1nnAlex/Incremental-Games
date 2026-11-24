@@ -6,6 +6,8 @@ Browser incremental games, one per folder. Played on GitHub Pages:
 | Folder | Game |
 |---|---|
 | `1st Try/` | **Speck**: dust → planets → stars → supernovae → galaxy. See its own README. |
+| `Dragon Incremental/` | **Wyrmheart**: raise a dragon from a cold egg across Molts, Generations, and Realms. |
+| `Mythogenesis/` | **Mythogenesis**: Void Aether → Elemental Cycle → Constellations → Pantheon → Ragnarok. |
 
 ## Adding another game
 Every game is a self-contained static site in its own folder, so a new game can't break an existing one.
