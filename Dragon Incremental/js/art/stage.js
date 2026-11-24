@@ -18,11 +18,20 @@ const LOCATIONS = {
   ruins: { img: "assets/bg/ruins.jpg", ground: 0.86, x: 0.5 },
   citadel: { img: "assets/bg/citadel.jpg", ground: 0.86, x: 0.5 },
   eclipse: { img: "assets/bg/eclipse.jpg", ground: 0.84, x: 0.5 },
+  skies: { img: "assets/bg/skies.jpg", ground: 0.85, x: 0.5 },
+  orbit: { img: "assets/bg/orbit.jpg", ground: 0.85, x: 0.5 },
+  nebula: { img: "assets/bg/nebula.jpg", ground: 0.85, x: 0.5 },
+  sun: { img: "assets/bg/sun.jpg", ground: 0.85, x: 0.5 },
+  dawn: { img: "assets/bg/dawn.jpg", ground: 0.85, x: 0.5 },
 };
 const BG_ASPECT = 1920 / 1072;
 
 // Creature height as a fraction of the stage height, per stage (the egg grows with incubation)
-const STAGE_SIZE = { hatchling: 0.3, youngling: 0.42, juvenile: 0.54, adult: 0.66, elder: 0.7, ancient: 0.74, sovereign: 0.76, worldeater: 0.8 };
+const STAGE_SIZE = {
+  hatchling: 0.3, youngling: 0.42, juvenile: 0.54, adult: 0.66,
+  elder: 0.7, ancient: 0.74, sovereign: 0.76, worldeater: 0.8,
+  celestial: 0.82, stardevourer: 0.84, voidleviathan: 0.86, suneater: 0.88, firstflame: 0.9,
+};
 
 const STAGE = { root: null, hud: {}, bgKey: "", imgKey: "", lastFloat: 0 };
 

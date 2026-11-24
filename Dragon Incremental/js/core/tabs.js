@@ -9,6 +9,7 @@ function tabDefs() {
     { id: "youngling", name: "Dragon", unlocked: () => tmp.youngling.unlocked, attention: () => player.youngling.hatched && Object.keys(LAYERS.youngling.buyables).some((k) => tmp.youngling.buyables[k].unlocked && canBuyBuyable("youngling", k)), build: buildDragonTab },
     { id: "bloodline", name: "Bloodline", unlocked: () => tmp.bloodline.unlocked, attention: () => !!tmp.bloodline.canPrestige || Object.keys(LAYERS.bloodline.buyables).some((k) => canBuyBuyable("bloodline", k)), build: buildBloodlineTab },
     { id: "conquest", name: "Conquest", unlocked: () => tmp.conquest.unlocked, attention: () => !!tmp.conquest.canPrestige || Object.keys(LAYERS.conquest.buyables).some((k) => tmp.conquest.buyables[k].unlocked && canBuyBuyable("conquest", k)), build: buildConquestTab },
+    { id: "firmament", name: "Firmament", unlocked: () => tmp.firmament && tmp.firmament.unlocked, attention: () => !!(tmp.firmament && tmp.firmament.canPrestige) || anyFirmamentBuyable(), build: buildFirmamentTab },
     { id: "feats", name: "Feats", build: buildFeatsTab },
     { id: "stats", name: "Stats", build: buildStatsTab },
     { id: "options", name: "Options", build: buildOptionsTab },
@@ -274,7 +275,7 @@ function buildConquestTab(panel) {
   const rp = subs[0].panel;
   const conquerBtn = h("button", { class: "molt-btn", onclick: () => requestPrestige("conquest") });
   const conquerInfo = h("div", { class: "molt-info" });
-  const sum = { realms: h("b"), gold: h("b"), next: h("b") };
+  const sum = { realms: h("b"), gold: h("b"), tithe: h("b"), next: h("b") };
   const markers = REALMS.map((r, i) => {
     const m = h("div", { class: "realm-marker", title: r.name }, h("span", { class: "realm-dot" }, String(i + 1)), h("span", { class: "realm-name" }, r.name));
     m.style.left = r.x * 100 + "%";
@@ -296,6 +297,7 @@ function buildConquestTab(panel) {
         h("div", { class: "summary" },
           h("div", {}, h("span", {}, "Realms"), sum.realms),
           h("div", {}, h("span", {}, "Gold"), sum.gold),
+          h("div", {}, h("span", {}, "Kingdom tithe"), sum.tithe),
           h("div", {}, h("span", {}, "Next conquest"), sum.next)
         )
       ),
@@ -333,6 +335,8 @@ function buildConquestTab(panel) {
     setText(conquerInfo, def.prestige.requirementText());
     setText(sum.realms, realms() + " / " + REALMS.length);
     setText(sum.gold, formatWhole(player.conquest.gold));
+    const rate = tmp.conquest ? tmp.conquest.rate : kingdomGoldRate();
+    setText(sum.tithe, rate && rate.gt(0) ? "+" + format(rate) + " / s" : "None");
     setText(sum.next, "+" + formatWhole(t.prestigeGain));
     markers.forEach((m, i) => {
       setClass(m, "taken", i < realms());
@@ -345,6 +349,249 @@ function buildConquestTab(panel) {
       const hidden = keysOf("tribute").filter((k) => !tmp.conquest.buyables[k].unlocked).length;
       setVisible(tributeHint, hidden > 0);
       setText(tributeHint, hidden + " more tribute" + (hidden === 1 ? "" : "s") + " will come as more realms fall.");
+    }
+  };
+}
+
+// ---------- Firmament (The Great Slumber, Celestial Spheres, Constellations) ----------
+
+function buildFirmamentTab(panel) {
+  const def = LAYERS.firmament;
+
+  const subs = [
+    { id: "slumber", name: "The Slumber", unlocked: () => true },
+    { id: "spheres", name: "Celestial Spheres", unlocked: () => true },
+    { id: "constellations", name: "Constellations", unlocked: () => true },
+  ];
+  const bar = h("div", { class: "subtabs" });
+  for (const s of subs) {
+    s.btn = h("button", { class: "subtab", onclick: () => (player.firmamentTab = s.id) }, s.name);
+    s.panel = h("div", { class: "subpanel" });
+    bar.append(s.btn);
+  }
+  panel.append(bar, ...subs.map((s) => s.panel));
+
+  // ----- 1. The Slumber & Ascension -----
+  const sp1 = subs[0].panel;
+
+  const slumberDot = h("span", { class: "slumber-dot" });
+  const slumberStateLabel = h("span", {}, "Awake in the Mortal Skies");
+  const slumberStateText = h("div", { class: "slumber-state" }, slumberDot, slumberStateLabel);
+  const slumberRateText = h("div", { class: "hint" });
+  const slumberTimerText = h("div", { class: "hint" });
+  const slumberBtn = h("button", { class: "slumber-btn", onclick: toggleSlumber }, "Enter The Great Slumber");
+
+  const slumberCard = h(
+    "div",
+    { class: "slumber-card" },
+    h("div", { class: "slumber-header" },
+      h("div", {},
+        h("h3", {}, "The Great Slumber"),
+        slumberStateText
+      ),
+      slumberBtn
+    ),
+    slumberRateText,
+    slumberTimerText
+  );
+
+  const dreamBankText = h("b", {});
+  const speedStatusText = h("div", { class: "hint" });
+  const speedBtns = [1, 5, 10].map((spd) => {
+    return h("button", { class: "speed-btn", onclick: () => setFastForward(spd) }, spd + "×" + (spd === 1 ? " Normal" : spd === 5 ? " Astral" : " Warp"));
+  });
+
+  const dreamCard = h(
+    "div",
+    { class: "firmament-box" },
+    h("h3", {}, "Dream Essence & Astral Fast-Forward"),
+    h("p", { class: "stage-info" }, "Real-world sleep and offline time is preserved as Dream Essence. While awake, burn banked time to run lower layers at accelerated speeds."),
+    h("div", { class: "dream-controls" },
+      h("div", {}, h("span", {}, "Banked Dream Essence: "), dreamBankText),
+      h("div", { class: "speed-group" }, ...speedBtns)
+    ),
+    speedStatusText
+  );
+
+  const ascendBtn = h("button", { class: "molt-btn", onclick: () => requestPrestige("firmament") });
+  const ascendInfo = h("div", { class: "molt-info" });
+  const sum = { starlight: h("b"), total: h("b"), depth: h("b"), bank: h("b") };
+
+  const ascendCol = h(
+    "div",
+    { class: "dragon-col" },
+    h("h2", {}, "Ascension to the Stars"),
+    h("p", { class: "stage-info" }, "Resets Foraging, the Dragon, and Bloodline for an immediate burst of Starlight based on your mortal Gold. All 7 Conquered Realms, Gold, and Hoard relics remain yours."),
+    h("div", { class: "molt-box" }, ascendBtn, ascendInfo),
+    h(
+      "div",
+      { class: "summary" },
+      h("div", {}, h("span", {}, "Starlight"), sum.starlight),
+      h("div", {}, h("span", {}, "Total ⭐"), sum.total),
+      h("div", {}, h("span", {}, "Slumber Depth"), sum.depth),
+      h("div", {}, h("span", {}, "Dream Bank"), sum.bank)
+    )
+  );
+
+  sp1.append(
+    h("div", { class: "dragon-grid" },
+      h("div", { class: "dragon-col" },
+        h("h2", {}, "Cosmic Meditation"),
+        slumberCard,
+        dreamCard
+      ),
+      ascendCol
+    )
+  );
+
+  // ----- 2. Celestial Spheres -----
+  const sp2 = subs[1].panel;
+  sp2.append(
+    h("div", { class: "panel-head" },
+      h("div", {},
+        h("h2", {}, "The 5 Celestial Spheres"),
+        h("div", { class: "panel-sub" }, "Cosmic feasts that transcend the mortal earth, granting primordial passives and unlocking mythical dragon evolutions.")
+      )
+    )
+  );
+
+  const sphereGrid = h("div", { class: "spheres-grid" });
+  const sphereCards = SPHERES.map((s) => {
+    const badge = h("span", { class: "sphere-badge" });
+    const costBtn = h("button", { class: "buy-btn", onclick: () => buySphere(s.id) });
+    const card = h(
+      "div",
+      { class: "sphere-card" },
+      h("div", {},
+        h("div", { class: "sphere-head" },
+          h("div", {},
+            h("div", { class: "sphere-name" }, s.name),
+            h("div", { class: "sphere-form" }, s.title + " · " + s.formName)
+          ),
+          badge
+        ),
+        h("div", { class: "sphere-desc" }, s.desc)
+      ),
+      h("div", { class: "sphere-foot" },
+        h("span", { class: "sphere-cost" }, formatWhole(s.cost) + " ⭐"),
+        costBtn
+      )
+    );
+    sphereGrid.append(card);
+    return { s, card, badge, costBtn };
+  });
+  sp2.append(sphereGrid);
+
+  // ----- 3. Cosmic Constellations -----
+  const sp3 = subs[2].panel;
+  sp3.append(
+    h("div", { class: "panel-head" },
+      h("div", {},
+        h("h2", {}, "Cosmic Constellations"),
+        h("div", { class: "panel-sub" }, "The 8 Keystones of the Heavens. Each lit star permanently shatters a fundamental rule.")
+      )
+    )
+  );
+
+  const constGrid = h("div", { class: "constellation-grid" });
+  const keystoneCards = KEYSTONES.map((k) => {
+    const costText = h("div", { class: "keystone-cost" });
+    const card = h(
+      "div",
+      { class: "keystone-card", onclick: () => buyKeystone(k.id) },
+      h("img", { class: "keystone-icon", src: k.icon || "assets/icons/horns.jpg", alt: "" }),
+      h("div", {},
+        h("div", { class: "keystone-title" }, k.name),
+        h("div", { class: "keystone-latin" }, k.latin),
+        h("div", { class: "keystone-desc" }, k.desc),
+        costText
+      )
+    );
+    constGrid.append(card);
+    return { k, card, costText };
+  });
+  sp3.append(constGrid);
+
+  return () => {
+    const open = subs.filter((s) => s.unlocked());
+    const cur = open.find((s) => s.id === player.firmamentTab) || open[0];
+    for (const s of subs) {
+      setClass(s.btn, "active", s === cur);
+      setVisible(s.panel, s === cur);
+    }
+
+    const f = player.firmament;
+    if (!f) return;
+
+    // Subpanel 1: The Slumber & Ascension
+    const slumbering = isSlumbering();
+    setClass(slumberDot, "active", slumbering);
+    setText(slumberStateLabel, slumbering ? "Asleep · The Great Slumber" : "Awake in the Mortal Skies");
+    setClass(slumberBtn, "slumbering", slumbering);
+    setText(slumberBtn, slumbering ? "Awaken from Slumber" : "Enter The Great Slumber");
+
+    const rate = starlightRate();
+    if (slumbering) {
+      setText(slumberRateText, "Gathering: +" + format(rate) + " Starlight / s (" + slumberDepthName() + ")");
+      setText(slumberTimerText, "Time in current slumber: " + formatTime(f.slumberTimer));
+    } else {
+      setText(slumberRateText, "Potential when slumbering: +" + format(rate) + " Starlight / s");
+      setText(slumberTimerText, "Slumber is currently paused. The dragon is active.");
+    }
+
+    setText(dreamBankText, formatTime(f.dreamBank) + " / 48h max");
+    speedBtns.forEach((b, i) => {
+      const spd = [1, 5, 10][i];
+      setClass(b, "on", f.fastForward === spd);
+      if (spd === 10) b.disabled = !hasKeystone("dream");
+    });
+    if (f.fastForward > 1 && f.dreamBank > 0 && !slumbering) {
+      setText(speedStatusText, "Astral Fast-Forward active (" + f.fastForward + "× speed). Burning " + (f.fastForward - 1) + "s banked time per second.");
+    } else if (slumbering) {
+      setText(speedStatusText, "Fast-forward paused while in The Great Slumber.");
+    } else if (f.dreamBank <= 0) {
+      setText(speedStatusText, "Dream Essence depleted. Slumber or spend time offline to bank time.");
+    } else {
+      setText(speedStatusText, "Running at normal 1× speed.");
+    }
+
+    const t = tmp.firmament;
+    setText(ascendBtn, t && t.canPrestige ? "Ascend to the Stars · +" + formatWhole(t.prestigeGain) + " Starlight ⭐" : "Ascend to the Stars");
+    setClass(ascendBtn, "can", !!(t && t.canPrestige));
+    setText(ascendInfo, def.prestige.requirementText());
+
+    setText(sum.starlight, formatWhole(f.starlight));
+    setText(sum.total, formatWhole(f.total));
+    setText(sum.depth, slumberDepthName());
+    setText(sum.bank, formatTime(f.dreamBank));
+
+    // Subpanel 2: Spheres
+    for (const { s, card, badge, costBtn } of sphereCards) {
+      const owned = hasSphere(s.id);
+      const canAfford = !owned && f.starlight.gte(s.cost);
+      setClass(card, "unlocked", owned);
+      setClass(card, "can", canAfford);
+      setText(badge, owned ? "Awoken" : "Dormant");
+      if (owned) {
+        setText(costBtn, "Claimed");
+        costBtn.disabled = true;
+      } else {
+        setText(costBtn, canAfford ? "Claim Sphere" : "Needs ⭐");
+        costBtn.disabled = !canAfford;
+      }
+    }
+
+    // Subpanel 3: Constellations
+    for (const { k, card, costText } of keystoneCards) {
+      const owned = hasKeystone(k.id);
+      const canAfford = !owned && f.starlight.gte(k.cost);
+      setClass(card, "unlocked", owned);
+      setClass(card, "can", canAfford);
+      if (owned) {
+        setText(costText, "★ Lit · Rule Shattered");
+      } else {
+        setText(costText, formatWhole(k.cost) + " ⭐" + (canAfford ? " · Click to Light" : ""));
+      }
     }
   };
 }
@@ -550,11 +797,14 @@ function buildStatsTab(panel) {
     setText(row("auto", "Wing feeds"), formatWhole(s.autoFeeds));
     setText(row("scales", "Scales earned"), formatWhole(player.youngling.total));
     setText(row("molts", "Molts"), formatWhole(molts()));
-    setText(row("length", "Length"), dragonLength().toFixed(1) + " m");
-    if (generations() > 0 || realms() > 0) setText(row("gens", "Generation"), formatWhole(generations() + 1));
-    if (realms() > 0) setText(row("realms", "Realms conquered"), realms() + " / " + REALMS.length);
-    if (realms() > 0) setText(row("gold", "Gold earned"), formatWhole(player.conquest.total));
-    if (player.evolutions.length) setText(row("forms", "Legendary forms"), player.evolutions.length + " / 4");
+    setText(row("length", "Length"), (dragonLength() >= 10000 ? format(dragonLength()) : dragonLength().toFixed(1)) + " m");
+    if (generations() > 0 || realms() > 0 || ascensions() > 0) setText(row("gens", "Generation"), formatWhole(generations() + 1));
+    if (realms() > 0 || ascensions() > 0) setText(row("realms", "Realms conquered"), realms() + " / " + REALMS.length);
+    if (realms() > 0 || ascensions() > 0) setText(row("gold", "Gold earned"), formatWhole(player.conquest.total));
+    if (ascensions() > 0) setText(row("ascensions", "Ascensions"), formatWhole(ascensions()));
+    if (player.firmament && player.firmament.total.gt(0)) setText(row("starlight", "Starlight earned"), formatWhole(player.firmament.total) + " ⭐");
+    const legendaryCount = STAGES.filter(s => s.legendary).length;
+    if (player.evolutions.length) setText(row("forms", "Legendary forms"), player.evolutions.length + " / " + legendaryCount);
     const first = s.first.youngling;
     setText(row("hatch", "Hatched after"), first ? formatTime(first) : "Not yet");
   };

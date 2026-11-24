@@ -17,8 +17,19 @@ function realms() {
   return player.conquest.resets || 0;
 }
 
-const hoardLevel = (k) => player.conquest.buyables[k].toNumber();
-const hasTribute = (k) => player.conquest.buyables[k].gte(1);
+const hoardLevel = (k) => (player.conquest.buyables[k] ? player.conquest.buyables[k].toNumber() : 0);
+const hasTribute = (k) => (player.conquest.buyables[k] ? player.conquest.buyables[k].gte(1) : false);
+const hasHoardRelic = (k) => (player.conquest && player.conquest.buyables[k] && player.conquest.buyables[k].gte(1));
+
+/** Passive Gold per second from conquered mortal realms. */
+function kingdomGoldRate() {
+  const r = realms();
+  if (r <= 0) return E(0);
+  const sum = (r * (r + 1)) / 2; // 1 + 2 + ... + r
+  let rate = E(sum * 0.01).mul(goldMult());
+  if (typeof hasKeystone === "function" && hasKeystone("vault")) rate = rate.mul(goldMult());
+  return rate;
+}
 
 // ---------- Multipliers used by the earlier layers ----------
 
@@ -27,7 +38,10 @@ function conquestFoodMult() {
   let m = Decimal.pow(1.5, hoardLevel("gilded"));
   if (realms() >= 1) m = m.mul(3);
   if (realms() >= 6) m = m.mul(4);
-  if (hoardLevel("mountain") >= 1) m = m.mul(player.conquest.gold.add(1).pow(0.3));
+  if (hoardLevel("mountain") >= 1) {
+    const exp = (typeof hasSphere === "function" && hasSphere("sun")) ? 0.45 : 0.3;
+    m = m.mul(player.conquest.gold.add(1).pow(exp));
+  }
   return m;
 }
 
@@ -41,11 +55,13 @@ function conquestScaleMult() {
   return Decimal.pow(1.3, hoardLevel("crown"));
 }
 
-/** Embers: the current form, realm 4, Ember Throne. */
+/** Embers: the current form, realm 4, Ember Throne, Ancient Lineage, Solar Prominence. */
 function emberMult() {
   let m = E(currentStage().embers || 1);
   if (realms() >= 4) m = m.mul(2);
   m = m.mul(Decimal.pow(1.25, hoardLevel("throne")));
+  if (typeof lineageMult === "function") m = m.mul(lineageMult());
+  if (typeof hasKeystone === "function" && hasKeystone("solar")) m = m.mul(breathMult());
   return m;
 }
 
@@ -69,6 +85,11 @@ function checkReveals() {
   if (generations() >= 1 || realms() >= 1) want.push("elder");
   if (realms() >= 1) want.push("ancient", "sovereign");
   if (realms() >= 4) want.push("worldeater");
+  if (realms() >= 7 || player.evolutions.includes("worldeater")) want.push("celestial");
+  if (player.evolutions.includes("celestial")) want.push("stardevourer");
+  if (player.evolutions.includes("stardevourer")) want.push("voidleviathan");
+  if (player.evolutions.includes("voidleviathan")) want.push("suneater");
+  if (player.evolutions.includes("suneater")) want.push("firstflame");
   for (const id of want) {
     if (player.revealed.includes(id)) continue;
     player.revealed.push(id);
@@ -81,6 +102,7 @@ function checkEvolution() {
   const s = currentStage();
   if (!s.legendary || player.evolutions.includes(s.id)) return;
   player.evolutions.push(s.id);
+  checkReveals();
   if (!simulating && typeof showEvolutionReveal === "function") showEvolutionReveal(s);
 }
 
@@ -97,6 +119,22 @@ registerLayer({
   startData: () => ({ gold: E(0), total: E(0) }),
 
   unlocked: () => player.evolutions.includes("elder") || realms() > 0,
+
+  tick(dt) {
+    const rate = kingdomGoldRate();
+    if (rate.gt(0)) {
+      player.conquest.gold = player.conquest.gold.add(rate.mul(dt));
+      player.conquest.total = player.conquest.total.add(rate.mul(dt));
+    }
+  },
+
+  temp() {
+    return { rate: kingdomGoldRate() };
+  },
+
+  rate() {
+    return tmp.conquest.rate;
+  },
 
   prestige: {
     // Gold = √(Embers earned since the last conquest) × the form's Gold bonus
@@ -162,6 +200,24 @@ registerLayer({
       effect: () => player.conquest.gold.add(1).pow(0.3),
       effectDisplay: (x) => (hoardLevel("mountain") ? "Food " + formatMult(x) : "Would give Food " + formatMult(x)),
     },
+    horn: {
+      group: "hoard", title: "Horn of the Greenwood", icon: "assets/icons/horns.jpg",
+      desc: "Carved from an ancient elder-wood stag. Hand-feeding triggers a 15-second Draconic Roar, doubling Wing feed rate.",
+      cost: () => E(5), max: 1, unlocked: () => realms() >= 2,
+      effect: (n) => E(n), effectDisplay: (x) => (x.gte(1) ? "Carved" : "Not carved"),
+    },
+    scepter: {
+      group: "hoard", title: "Sunken Scepter", icon: "assets/icons/tail.jpg",
+      desc: "Dredged from the river delta. Food source cost growth is reduced by an extra −0.004.",
+      cost: () => E(20), max: 1, unlocked: () => realms() >= 3,
+      effect: (n) => E(n), effectDisplay: (x) => (x.gte(1) ? "Dredged" : "Not dredged"),
+    },
+    urn: {
+      group: "hoard", title: "Cinder Urn", icon: "assets/icons/hoard_throne.jpg",
+      desc: "Ashes of fallen dynasties. Passively generates +0.5% of your total Embers earned every minute.",
+      cost: () => E(80), max: 1, unlocked: () => realms() >= 5,
+      effect: (n) => E(n), effectDisplay: (x) => (x.gte(1) ? "Active" : "Not forged"),
+    },
     // ----- Tribute (after Realm 4) -----
     kobolds: {
       group: "tribute", title: "Kobold Foragers", icon: "assets/icons/tribute_kobolds.jpg",
@@ -197,7 +253,9 @@ registerLayer({
 
   automation: {
     kobolds: {
-      name: "Kobold Foragers", buyable: "kobolds", interval: () => 0.5, unlocked: () => hasTribute("kobolds"),
+      name: "Kobold Foragers", buyable: "kobolds",
+      interval: () => (typeof hasSphere === "function" && hasSphere("skies") ? 0.25 : 0.5),
+      unlocked: () => hasTribute("kobolds"),
       run: () => {
         for (const k of SOURCE_KEYS) buyN("forage", k, 100);
         for (const k in LAYERS.forage.upgrades) buyUpgrade("forage", k);
@@ -206,33 +264,24 @@ registerLayer({
     shamans: {
       name: "Auto-Molt", buyable: "shamans", interval: () => 1, unlocked: () => hasTribute("shamans"),
       run: () => {
-        if (player.youngling.hatched) doPrestige("youngling");
+        if (tmp.youngling.canPrestige) doPrestige("youngling");
       },
     },
     brood: {
       name: "Brood Keepers", buyable: "brood", interval: () => 1, unlocked: () => hasTribute("brood"),
       run: () => {
-        let bought = true;
-        while (bought) {
-          bought = false;
-          let best = null;
-          let bc = null;
-          for (const k in LAYERS.youngling.buyables) {
-            if (!canBuyBuyable("youngling", k)) continue;
-            const c = buyableCost("youngling", k);
-            if (!bc || c.lt(bc)) { best = k; bc = c; }
-          }
-          if (best) bought = buyBuyable("youngling", best);
+        for (const k in LAYERS.youngling.buyables) {
+          if (canBuyBuyable("youngling", k)) buyBuyable("youngling", k);
         }
       },
     },
     wardens: {
       name: "Auto-Egg", buyable: "wardens", interval: () => 2, unlocked: () => hasTribute("wardens"),
       run: () => {
-        // Lay only when no further form is reachable this generation
+        // Lay only when no further mortal form is reachable this generation (stops at World-Eater)
         const next = STAGES[stageIndex() + 1];
         const blocked = !next || (next.gate && !next.gate());
-        if (stageIndex() >= 4 && blocked) {
+        if (stageIndex() >= 4 && stageIndex() < 8 && blocked) {
           updateTemp();
           if (tmp.bloodline.canPrestige) doPrestige("bloodline");
         }

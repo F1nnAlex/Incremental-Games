@@ -11,7 +11,12 @@ const MOLT_FACTORS = [8, 8, 20, 15, 12, 12, 5, 4, 3];
 /** Food needed this run for the next Hatch / Molt. */
 function growthReq() {
   let r = HATCH_REQ;
-  for (let k = 0; k < molts(); k++) r = r.mul(MOLT_FACTORS[k] || 3); // past Adult: ×3 per Molt
+  const m = molts();
+  const baseCount = Math.min(m, MOLT_FACTORS.length);
+  for (let k = 0; k < baseCount; k++) r = r.mul(MOLT_FACTORS[k]);
+  if (m > MOLT_FACTORS.length) {
+    r = r.mul(Decimal.pow(3, m - MOLT_FACTORS.length));
+  }
   return r.div(quickHatchDiv()).div(conquestReqDiv()); // Bloodline: Quick Hatch, Conquest: Riverlands
 }
 
@@ -25,15 +30,26 @@ function feedPower() {
   return p;
 }
 
-/** Feed once. manual = clicked by the player; otherwise a wingbeat (half strength). */
+/** Feed once. manual = clicked by the player; otherwise a wingbeat (half strength, or full with Predator's Gaze). */
 function feed(manual = true) {
   let gain = feedPower();
   if (manual) {
     player.stats.feeds++;
     player.forage.feeds++;
+    if (typeof hasHoardRelic === "function" && hasHoardRelic("horn")) {
+      player.forage.roarTimer = 15;
+    }
   } else {
-    gain = gain.mul(0.5);
+    let wingFrac = hasUpgrade("forage", "predator") ? 1.0 : 0.5;
+    if (typeof hasKeystone === "function" && hasKeystone("wings")) wingFrac = 1.0;
+    gain = gain.mul(wingFrac);
+    if (typeof hasSphere === "function" && hasSphere("skies")) gain = gain.mul(2);
     player.stats.autoFeeds++;
+    if (typeof hasKeystone === "function" && hasKeystone("wings") && player.youngling && player.youngling.hatched) {
+      const shed = E(1).mul(conquestScaleMult()).mul(hideMult());
+      player.youngling.scales = player.youngling.scales.add(shed);
+      player.youngling.total = player.youngling.total.add(shed);
+    }
   }
   addFood(gain);
   return gain;
@@ -82,7 +98,8 @@ function broodBonus(amount) {
 /** Plain exponential cost, paid level by level (Max buys one at a time, each paid in full). */
 function sourceCost(start, growth) {
   return (n) => {
-    const g = growth - 0.006 * tailLevel();
+    const scepterDiscount = typeof hasHoardRelic === "function" && hasHoardRelic("scepter") ? 0.004 : 0;
+    const g = growth - 0.006 * tailLevel() - scepterDiscount;
     return Decimal.pow(g, n).mul(start).floor();
   };
 }
@@ -93,7 +110,7 @@ const SOURCE_KEYS = ["berries", "mushrooms", "trout", "deer"];
 function buyN(layer, key, n) {
   let bought = 0;
   while (bought < n && buyBuyable(layer, key)) bought++;
-  if (bought) updateTemp();
+  if (bought && !simulating) updateTemp();
   return bought;
 }
 
@@ -140,6 +157,7 @@ registerLayer({
     total: E(0), // Food gained this run
     feeds: 0, // hand feeds this run
     autoFeedTimer: 0,
+    roarTimer: 0,
   }),
 
   temp() {
@@ -153,6 +171,9 @@ registerLayer({
   tick(dt) {
     const rate = tmp.forage.rate;
     if (rate.gt(0)) addFood(rate.mul(dt));
+    if (player.forage.roarTimer > 0) {
+      player.forage.roarTimer = Math.max(0, player.forage.roarTimer - dt);
+    }
     tickWings(dt);
   },
 
@@ -280,6 +301,14 @@ registerLayer({
       unlockText: "Hatch the egg to unlock.",
       effect: () => E(1 + 0.25 * molts()),
       effectDisplay: (x) => "All food " + formatMult(x),
+    },
+    predator: {
+      title: "Predator's Gaze",
+      icon: "assets/icons/wings.jpg",
+      desc: "The dragon's eyes never lose sight of prey. Wings feed at full power instead of half.",
+      cost: E(5e8),
+      unlocked: () => player.youngling.hatched && (molts() >= 8 || generations() >= 1 || realms() >= 1),
+      unlockText: "Reach Molt 8 to unlock.",
     },
   },
 

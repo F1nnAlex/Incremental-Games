@@ -72,12 +72,12 @@ function runAutomation(dt) {
       autoTimers[k] = (autoTimers[k] || 0) + dt;
       // Cap catch-up runs so offline progress can't freeze the game
       let runs = 0;
-      while (autoTimers[k] >= interval && runs < 100) {
+      while (autoTimers[k] >= interval && runs < 5) {
         autoTimers[k] -= interval;
         a.run();
         runs++;
       }
-      if (runs === 100) autoTimers[k] = 0;
+      if (runs === 5) autoTimers[k] = 0;
     }
   }
 }

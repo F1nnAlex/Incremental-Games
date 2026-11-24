@@ -2,7 +2,7 @@
 
 const TICK_MS = 50; // 20 ticks per second
 const OFFLINE_MIN_SECONDS = 60; // shorter absences are just applied as one tick
-const OFFLINE_MAX_STEPS = 1000;
+const OFFLINE_MAX_STEPS = 200;
 
 let loopHandle = null;
 let lastAutosave = Date.now();
@@ -29,8 +29,22 @@ function gameTick() {
     // The tab was asleep for a long time (e.g. computer suspended)
     simulateTime(dt);
   } else {
+    let effectiveDt = Math.min(dt, OFFLINE_MIN_SECONDS);
+    // Astral Fast-Forward (burns banked Dream Essence to run faster)
+    if (player.firmament && player.firmament.fastForward > 1 && player.firmament.dreamBank > 0 && !player.firmament.slumbering) {
+      const speed = player.firmament.fastForward;
+      const extraNeeded = effectiveDt * (speed - 1);
+      if (player.firmament.dreamBank >= extraNeeded) {
+        player.firmament.dreamBank -= extraNeeded;
+        effectiveDt *= speed;
+      } else {
+        effectiveDt += player.firmament.dreamBank;
+        player.firmament.dreamBank = 0;
+        player.firmament.fastForward = 1;
+      }
+    }
     updateTemp();
-    calc(Math.min(dt, OFFLINE_MIN_SECONDS));
+    calc(effectiveDt);
   }
   updateTemp();
   updateUI();
@@ -45,6 +59,7 @@ function gameTick() {
 function simulateTime(seconds) {
   const before = {};
   for (const id of LAYER_ORDER) before[id] = player[id][LAYERS[id].currency];
+  const dreamBefore = player.firmament ? player.firmament.dreamBank : 0;
 
   simulating = true;
   const steps = Math.min(OFFLINE_MAX_STEPS, Math.ceil(seconds / (TICK_MS / 1000)));
@@ -61,6 +76,10 @@ function simulateTime(seconds) {
     const def = LAYERS[id];
     const gained = player[id][def.currency].sub(before[id]);
     if (gained.gt(0)) lines.push("+" + amountText(id, gained));
+  }
+  if (player.firmament) {
+    const dreamGained = player.firmament.dreamBank - dreamBefore;
+    if (dreamGained > 0) lines.push("+" + formatTime(dreamGained) + " Dream Essence (Banked)");
   }
   showModal({
     title: "Welcome back",

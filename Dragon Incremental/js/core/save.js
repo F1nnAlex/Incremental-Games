@@ -34,6 +34,9 @@ function mergeSave(defaults, saved) {
     if (typeof saved !== "object") return defaults;
     const out = {};
     for (const key in defaults) out[key] = mergeSave(defaults[key], saved[key]);
+    if (Object.keys(defaults).length === 0) {
+      for (const key in saved) out[key] = saved[key];
+    }
     return out;
   }
   return typeof saved === typeof defaults ? saved : defaults;

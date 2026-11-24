@@ -13,6 +13,7 @@ function getStartPlayer() {
     tab: "forage",
     buyAmount: "1", // "1", "10" or "max"
     conquestTab: "realms",
+    firmamentTab: "slumber",
     unlocked: Object.fromEntries(LAYER_ORDER.map((id) => [id, false])),
     auto: getAutomationDefaults(),
     seen: [], // tabs opened at least once; new ones get a notification dot

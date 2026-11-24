@@ -14,7 +14,7 @@ Open `index.html` in a browser. There is no build step. The save lives in `local
 - **Feed** by hand: click the Feed button or the creature, or press Space.
 - **Food sources** produce Food every second: Berry Bramble, Mushroom Ring, Trout Stream and
   Deer Trail. Every 25 of one doubles it.
-- **Upgrades** are permanent multipliers bought with Food. There are no timed boosts.
+- **Upgrades** are permanent multipliers bought with Food (including Den Memory and Predator's Gaze). There are no timed boosts.
 - **Incubation:** the egg starts small and grows as it gets closer to hatching. Its shell cracks
   at 50%, and at 90% it is breaking open. The Hatch needs 2,000,000 Food in one run.
 
@@ -35,6 +35,7 @@ Open `index.html` in a browser. There is no build step. The save lives in `local
   | Hide | More Scales |
   | Fire Gland | ×Food, from the Youngling stage |
   | Fire Breath | ×Food, from the Juvenile stage |
+  | Dragon Heart | ×Scales, from the Adult stage |
 
 - **Size:** total Scales give ×√(1 + total) to all Food.
 - **Growth stages** come with the number of Molts. Each stage has new art, a bigger dragon, a new
@@ -62,6 +63,7 @@ Open `index.html` in a browser. There is no build step. The save lives in `local
   | Thick Blood | Scales ×1.3 per level |
   | Quick Hatch | Hatch and Molt requirements ÷1.3 per level |
   | Inheritance | +5 Scales on the Hatch |
+  | Ancient Lineage | Embers ×(1 + 0.25 per Realm conquered) per level |
 
 - **Generation milestones** start autobuyers earlier and keep upgrades.
 
@@ -74,6 +76,11 @@ More Molts in one generation, plus a permanent gate. Each form is **hidden** unt
 | Ancient Wyrm | 15 Molts, 1 Realm | Ruins of the Dragon City | Food ×15, Embers ×2, Gold ×2 | the first conquest |
 | Dragon Sovereign | 18 Molts, 4 Realms | The Conquered Citadel | Food ×40, Embers ×2, Gold ×4 | the first conquest |
 | World-Eater | 22 Molts, all 7 Realms | The Burning World | Food ×100, Embers ×3, Gold ×8 | the 4th conquest |
+| Celestial Wyrm | 26 Molts, World-Eater | Above the Clouds | Food ×250, Embers ×4, Gold ×12 | the 7th conquest |
+| Star-Devourer | 30 Molts, Celestial Wyrm | The Edge of the World | Food ×1,000, Embers ×6, Gold ×20 | Celestial Wyrm |
+| Void Leviathan | 35 Molts, Star-Devourer | The Nebula Deeps | Food ×5,000, Embers ×10, Gold ×40 | Star-Devourer |
+| Sun-Eater | 40 Molts, Void Leviathan | The Heart of the Sun | Food ×25,000, Embers ×20, Gold ×100 | Void Leviathan |
+| The First Flame | 46 Molts, Sun-Eater | The Dawn of Everything | Food ×250,000, Embers ×50, Gold ×500 | Sun-Eater |
 
 From the Youngling on, every stage is one integrated Higgsfield scene (the dragon painted into its place), in `assets/scenes/`.
 
@@ -82,6 +89,7 @@ From the Youngling on, every stage is one integrated Higgsfield scene (the drago
 - **Conquer a Realm** (Elder or greater) resets Foraging, the Dragon and the Bloodline for Gold:
   `2 × √(Embers since the last conquest) × the form's Gold bonus` (×3 more after the Heartlands).
   Each realm needs a number of Embers earned since the last conquest.
+- **Kingdom tithes:** conquered realms continuously pay taxes in Gold: `(0.01 × (1 + ... + Realms)) × form Gold bonus` per second.
 - The three mechanics **unlock one at a time**:
 
   | Sub-tab | Unlocks | What it does |
@@ -102,8 +110,10 @@ From the Youngling on, every stage is one integrated Higgsfield scene (the drago
   | 6 | The Sky Citadels | 3,000,000 | All Food ×4 |
   | 7 | The Heartlands | 20,000,000 | Gold ×3 |
 
-- **Hoard** (Gold, repeatable): Gilded Nest (Food ×1.5 per level), Crown of Scales (Scales ×1.3),
-  Ember Throne (Embers ×1.25), and Mountain of Gold (one purchase: Food ×(1 + Gold)^0.3).
+- **Hoard** (Gold): Gilded Nest (Food ×1.5 per level), Crown of Scales (Scales ×1.3),
+  Ember Throne (Embers ×1.25), Mountain of Gold (Food ×(1 + Gold)^0.3), Horn of the Greenwood (hand-feeding
+  triggers a 15s Draconic Roar doubling Wing rate), Sunken Scepter (food sources cheaper), and Cinder Urn
+  (+0.5% of total Embers passively per minute).
 - **Tribute** (Gold, one purchase each): Kobold Foragers (auto-buy food sources and upgrades),
   Shamans of the Scale (auto-Molt), Brood Keepers (auto-buy body parts, realm 5), Egg Wardens
   (auto-egg when no new form is reachable, realm 5), Tithe (10% of a Molt's Scales every second,
@@ -125,7 +135,7 @@ are still estimates.
   the story pop-ups and the full-screen Evolution reveal.
 - `assets/`: realistic art made with Higgsfield.
   - `egg/`: the egg in 3 states.
-  - `dragon/`: all 8 forms, cut out on transparent backgrounds (used for the Growth track).
+  - `dragon/`: all 13 forms, cut out on transparent backgrounds (used for the Growth track).
   - `scenes/`: each form from the Youngling on, painted into its place (the main stage picture).
-  - `bg/`: the 8 locations, the `worldmap.jpg` for Conquest, and the `drake.jpg` teaser.
+  - `bg/`: the 13 locations, the `worldmap.jpg` for Conquest, and the `drake.jpg` teaser.
   - `icons/`: the item icons (food sources, upgrades, body parts, traits, Hoard and Tribute).

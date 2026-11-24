@@ -239,7 +239,8 @@ function canBuyBuyable(layer, key) {
   const def = LAYERS[layer].buyables[key];
   const amount = player[layer].buyables[key];
   if (def.unlocked && !def.unlocked()) return false;
-  if (def.max !== undefined && amount.gte(def.max)) return false;
+  const maxVal = resolve(def.max);
+  if (maxVal !== undefined && maxVal !== Infinity && amount.gte(maxVal)) return false;
   return player[layer][costKey(layer, def)].gte(buyableCost(layer, key));
 }
 
@@ -264,7 +265,8 @@ function buyMaxBuyable(layer, key, limit = 1000) {
 
   if (def.bulk) {
     let target = def.bulk(player[layer][cur]);
-    if (def.max !== undefined) target = target.min(def.max);
+    const maxVal = resolve(def.max);
+    if (maxVal !== undefined && maxVal !== Infinity) target = target.min(maxVal);
     if (target.lte(amount)) return 0;
     if (!(def.noSpend && def.noSpend())) player[layer][cur] = player[layer][cur].sub(def.cost(target.sub(1))).max(0);
     player[layer].buyables[key] = target;

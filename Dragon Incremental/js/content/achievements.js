@@ -23,6 +23,17 @@ const ACHIEVEMENTS = [
   { id: "sovereign", name: "Crowned in Fire", desc: "Evolve into a Dragon Sovereign.", req: () => player.evolutions.includes("sovereign"), hidden: () => !player.revealed.includes("sovereign") },
   { id: "worldeater", name: "Eclipse", desc: "Evolve into the World-Eater.", req: () => player.evolutions.includes("worldeater"), hidden: () => !player.revealed.includes("worldeater") },
   { id: "realm7", name: "Lord of the World", desc: "Conquer all seven realms.", req: () => realms() >= 7, hidden: () => !player.revealed.includes("ancient") },
+  { id: "predator", name: "Apex Vision", desc: "Unlock the Predator's Gaze upgrade.", req: () => hasUpgrade("forage", "predator") },
+  { id: "heart", name: "Molten Core", desc: "Grow a Dragon Heart to level 1.", req: () => bodyLevel("heart") >= 1 },
+  { id: "relic", name: "Spoils of War", desc: "Own a relic of the fallen kings.", req: () => typeof hasHoardRelic === "function" && (hasHoardRelic("horn") || hasHoardRelic("scepter") || hasHoardRelic("urn")), hidden: () => realms() < 1 },
+  { id: "celestial", name: "Beyond the Storm", desc: "Evolve into the Celestial Wyrm.", req: () => player.evolutions.includes("celestial"), hidden: () => !player.revealed.includes("celestial") },
+  { id: "stardevourer", name: "Cosmic Feast", desc: "Evolve into the Star-Devourer.", req: () => player.evolutions.includes("stardevourer"), hidden: () => !player.revealed.includes("stardevourer") },
+  { id: "voidleviathan", name: "The Deep Dark", desc: "Evolve into the Void Leviathan.", req: () => player.evolutions.includes("voidleviathan"), hidden: () => !player.revealed.includes("voidleviathan") },
+  { id: "suneater", name: "Heart of Fire", desc: "Evolve into the Sun-Eater.", req: () => player.evolutions.includes("suneater"), hidden: () => !player.revealed.includes("suneater") },
+  { id: "firstflame", name: "Genesis", desc: "Evolve into The First Flame.", req: () => player.evolutions.includes("firstflame"), hidden: () => !player.revealed.includes("firstflame") },
+  { id: "ascend", name: "Beyond the Veil", desc: "Ascend to the Firmament.", req: () => Boolean(player.firmament && (player.firmament.resets > 0 || player.firmament.total.gt(0))), hidden: () => realms() < 7 },
+  { id: "slumber", name: "The Great Slumber", desc: "Bank at least 1 hour of Dream Essence.", req: () => Boolean(player.firmament && player.firmament.dreamBank >= 3600), hidden: () => realms() < 7 },
+  { id: "keystone", name: "Starlit Path", desc: "Unlock your first Cosmic Keystone.", req: () => Boolean(player.firmament && Object.keys(player.firmament.keystones || {}).length >= 1), hidden: () => realms() < 7 },
 ];
 
 function hasAchievement(id) {

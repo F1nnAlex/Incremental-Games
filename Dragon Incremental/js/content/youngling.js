@@ -14,6 +14,7 @@ const hornLevel = () => bodyLevel("horns");
 const tailLevel = () => bodyLevel("tail");
 const hideLevel = () => bodyLevel("hide");
 const glandLevel = () => bodyLevel("gland");
+const heartLevel = () => (player.youngling && player.youngling.buyables.heart ? bodyLevel("heart") : 0);
 
 /** Hatch + Molts done (the Hatch counts as the first Molt). */
 function molts() {
@@ -23,8 +24,15 @@ function molts() {
 const clawMult = () => Decimal.pow(2, clawLevel());
 const hornMult = () => Decimal.pow(1.5, hornLevel());
 const glandMult = () => Decimal.pow(1.5, glandLevel());
-const breathMult = () => Decimal.pow(2, bodyLevel("breath"));
+const breathMult = () => {
+  const lvl = bodyLevel("breath");
+  if (typeof hasKeystone === "function" && hasKeystone("solar")) {
+    return Decimal.pow(2, Math.pow(lvl, 1.25));
+  }
+  return Decimal.pow(2, lvl);
+};
 const hideMult = () => Decimal.pow(1.5, hideLevel());
+const heartMult = () => Decimal.pow(1.25, heartLevel());
 const log2p = (x) => E(x).add(1).log2().toNumber();
 
 /** Size: total Scales ever earned, ×(1 + total)^0.5 to all food sources. */
@@ -64,6 +72,36 @@ const STAGES = [
     img: "assets/dragon/worldeater.png", scene: "assets/scenes/worldeater.jpg", gate: () => realms() >= 7, gateText: "All 7 Realms conquered",
     desc: "Its wings blot out the sun. All Food ×100, Gold ×8.",
     lore: "The sky goes dark when it rises. There is nothing left in the world that does not belong to it.",
+  },
+  {
+    id: "celestial", name: "Celestial Wyrm", place: "Above the Clouds", bg: "skies", at: 26, mult: 250, embers: 4, gold: 12, starlight: 1.5, legendary: true,
+    img: "assets/dragon/celestial.png", scene: "assets/scenes/celestial.jpg", gate: () => (player.evolutions.includes("worldeater") || realms() >= 7) && (typeof hasSphere !== "function" || hasSphere("skies")), gateText: "Sphere of the Skies (500 ⭐)",
+    desc: "Rises above the storm into pure light. All Food ×250, Embers ×4, Gold ×12, Starlight ×1.5.",
+    lore: "Gold-edged scales and aurora wings. It crowns itself in lightning and leaves the mortal world behind.",
+  },
+  {
+    id: "stardevourer", name: "Star-Devourer", place: "The Edge of the World", bg: "orbit", at: 30, mult: 1000, embers: 6, gold: 20, starlight: 2.0, legendary: true,
+    img: "assets/dragon/stardevourer.png", scene: "assets/scenes/stardevourer.jpg", gate: () => player.evolutions.includes("celestial") && (typeof hasSphere !== "function" || hasSphere("orbit")), gateText: "Sphere of Orbit (5,000 ⭐)",
+    desc: "Drinks the silver light of comets. All Food ×1,000, Embers ×6, Gold ×20, Starlight ×2.0.",
+    lore: "Wings full of galaxies and a ring of burning meteors. It looks down upon the curved earth and hungers for the stars.",
+  },
+  {
+    id: "voidleviathan", name: "Void Leviathan", place: "The Nebula Deeps", bg: "nebula", at: 35, mult: 5000, embers: 10, gold: 40, starlight: 3.0, legendary: true,
+    img: "assets/dragon/voidleviathan.png", scene: "assets/scenes/voidleviathan.jpg", gate: () => player.evolutions.includes("stardevourer") && (typeof hasSphere !== "function" || hasSphere("nebula")), gateText: "Sphere of the Nebula (80,000 ⭐)",
+    desc: "Swims through the deep dark. All Food ×5,000, Embers ×10, Gold ×40, Starlight ×3.0.",
+    lore: "A translucent body full of birth-nebulae and black crystal spines. It breathes the cold silence between the stars.",
+  },
+  {
+    id: "suneater", name: "Sun-Eater", place: "The Heart of the Sun", bg: "sun", at: 40, mult: 25000, embers: 20, gold: 100, starlight: 5.0, legendary: true,
+    img: "assets/dragon/suneater.png", scene: "assets/scenes/suneater.jpg", gate: () => player.evolutions.includes("voidleviathan") && (typeof hasSphere !== "function" || hasSphere("sun")), gateText: "Sphere of the Sun (1.5M ⭐)",
+    desc: "Bathes in the central fire. All Food ×25,000, Embers ×20, Gold ×100, Starlight ×5.0.",
+    lore: "Living solar plasma with a star core beating in its chest. Prominence wings flare across millions of leagues.",
+  },
+  {
+    id: "firstflame", name: "The First Flame", place: "The Dawn of Everything", bg: "dawn", at: 46, mult: 250000, embers: 50, gold: 500, starlight: 10.0, legendary: true,
+    img: "assets/dragon/firstflame.png", scene: "assets/scenes/firstflame.jpg", gate: () => player.evolutions.includes("suneater") && (typeof hasSphere !== "function" || hasSphere("dawn")), gateText: "Sphere of the Dawn (50M ⭐)",
+    desc: "The origin of all light. All Food ×250,000, Embers ×50, Gold ×500, Starlight ×10.0.",
+    lore: "White-gold crystal with orbiting planets and star rings. There is no darkness anywhere that it cannot warm.",
   },
 ];
 
@@ -108,13 +146,15 @@ function stageMult() {
 /** Length in metres, purely for flavour. */
 function dragonLength() {
   if (!player.youngling.hatched) return 0.3;
-  return [0, 0.6, 1.8, 4.5, 12, 20, 34, 50, 90][stageIndex()] * (1 + 0.04 * log2p(player.youngling.total));
+  return [0, 0.6, 1.8, 4.5, 12, 20, 34, 50, 90, 160, 300, 600, 1500, 5000][stageIndex()] * (1 + 0.04 * log2p(player.youngling.total));
 }
 
 // ---------- Wings: automatic feeding ----------
 
 function wingFeedRate() {
-  return wingLevel() * (molts() >= 12 || generations() >= 5 ? 2 : 1);
+  let r = wingLevel() * (molts() >= 12 || generations() >= 5 ? 2 : 1);
+  if (player.forage && player.forage.roarTimer > 0) r *= 2;
+  return r;
 }
 
 function tickWings(dt) {
@@ -128,7 +168,8 @@ function tickWings(dt) {
   const n = Math.floor(f.autoFeedTimer);
   if (n <= 0) return;
   f.autoFeedTimer -= n;
-  addFood(feedPower().mul(0.5).mul(n));
+  const mult = hasUpgrade("forage", "predator") ? 1.0 : 0.5;
+  addFood(feedPower().mul(mult).mul(n));
   player.stats.autoFeeds += n;
 }
 
@@ -168,7 +209,8 @@ registerLayer({
   tick(dt) {
     checkEvolution(); // first time reaching a legendary form → the big reveal
     if (!hasTribute("tithe") || !tmp.youngling.canPrestige) return;
-    const g = tmp.youngling.prestigeGain.mul(0.1 * dt);
+    const tithePct = (typeof hasSphere === "function" && hasSphere("orbit")) ? 0.25 : 0.10;
+    const g = tmp.youngling.prestigeGain.mul(tithePct * dt);
     player.youngling.scales = player.youngling.scales.add(g);
     player.youngling.total = player.youngling.total.add(g);
   },
@@ -183,7 +225,7 @@ registerLayer({
       if (player.forage.total.lt(growthReq())) return E(0);
       let g = E(2 * Math.pow(1 + molts(), 1.5)).mul(hideMult());
       if (hasUpgrade("forage", "restless")) g = g.mul(1.5);
-      g = g.mul(thickBloodMult()).mul(conquestScaleMult()).floor(); // Bloodline: Thick Blood, Conquest: Crown of Scales
+      g = g.mul(thickBloodMult()).mul(conquestScaleMult()).mul(heartMult()).floor(); // Bloodline: Thick Blood, Conquest: Crown of Scales, Heart
       if (!player.youngling.hatched) g = g.add(3 + inheritanceScales()); // first-hatch bonus (+ Bloodline: Inheritance)
       return g;
     },
@@ -209,6 +251,19 @@ registerLayer({
       const s = resetStash || { upgrades: [], first: false, stageBefore: 0 };
       player.forage.upgrades = s.upgrades.slice();
       player.forage.food = runStartFood(molts() >= 3 ? 100 : 10); // enough to restart the forest without clicking
+      if (typeof hasKeystone === "function" && hasKeystone("heart")) {
+        const keys = typeof SOURCE_KEYS !== "undefined" ? SOURCE_KEYS : ["berries", "mushrooms", "trout", "deer"];
+        for (const k of keys) {
+          if (player.forage.buyables[k] && player.forage.buyables[k].lt(100)) {
+            player.forage.buyables[k] = E(100);
+          }
+        }
+        if (LAYERS.forage && LAYERS.forage.upgrades) {
+          for (const k in LAYERS.forage.upgrades) {
+            if (!player.forage.upgrades.includes(k)) player.forage.upgrades.push(k);
+          }
+        }
+      }
       if (typeof stageEvent === "function") stageEvent(s.first ? "hatch" : "molt", { gain, grew: stageIndex() > s.stageBefore });
       resetStash = null;
     },
@@ -244,7 +299,7 @@ registerLayer({
       icon: "assets/icons/tail.jpg",
       desc: "A longer tail sweeps more ground. Food sources get cheaper as you buy them (cost growth −0.006 per level).",
       cost: partCost(4, 3),
-      max: 5,
+      max: () => (typeof hasKeystone === "function" && hasKeystone("void") ? Infinity : 5),
       effect: (n) => E(n).mul(0.006),
       effectDisplay: (x) => "−" + format(x, 3) + " cost growth",
     },
@@ -273,6 +328,15 @@ registerLayer({
       unlocked: () => stageIndex() >= 3,
       effect: (n) => Decimal.pow(2, n),
       effectDisplay: (x) => "Food " + formatMult(x),
+    },
+    heart: {
+      title: "Dragon Heart",
+      icon: "assets/icons/gland.jpg",
+      desc: "A furnace of molten blood. Scale gain ×1.25 per level. Awakens from the Adult stage.",
+      cost: partCost(25, 4),
+      unlocked: () => stageIndex() >= 4 || generations() >= 1 || realms() >= 1,
+      effect: (n) => Decimal.pow(1.25, n),
+      effectDisplay: (x) => "Scales " + formatMult(x),
     },
   },
 

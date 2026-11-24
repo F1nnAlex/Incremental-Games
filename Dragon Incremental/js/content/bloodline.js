@@ -15,6 +15,8 @@ const appetiteMult = () => Decimal.pow(1.3, traitLevel("appetite"));
 const thickBloodMult = () => Decimal.pow(1.3, traitLevel("blood"));
 const quickHatchDiv = () => Decimal.pow(1.3, traitLevel("quick"));
 const inheritanceScales = () => 5 * traitLevel("inherit");
+const lineageLevel = () => (player.bloodline && player.bloodline.buyables.lineage ? traitLevel("lineage") : 0);
+const lineageMult = () => Decimal.pow(1 + 0.25 * realms(), lineageLevel());
 
 registerLayer({
   id: "bloodline",
@@ -29,7 +31,15 @@ registerLayer({
     total: E(0), // Embers earned since the last conquest (conquests reset it)
   }),
 
-  unlocked: () => stageIndex() >= 4 || generations() > 0,
+  unlocked: () => stageIndex() >= 4 || generations() > 0 || realms() > 0,
+
+  // Cinder Urn: generates +0.5% of total Embers earned every minute
+  tick(dt) {
+    if (typeof hasHoardRelic === "function" && hasHoardRelic("urn") && player.bloodline.total.gt(0)) {
+      const gain = player.bloodline.total.mul(0.005 / 60).mul(dt);
+      player.bloodline.embers = player.bloodline.embers.add(gain);
+    }
+  },
 
   prestige: {
     // Embers = √(Scales earned this generation / 100): grow longer before laying for more
@@ -82,7 +92,7 @@ registerLayer({
       icon: "assets/icons/trait_quick.jpg",
       desc: "Each generation grows up faster. Hatch and Molt requirements ÷1.3 per level.",
       cost: partCost(3, 4),
-      max: 5,
+      max: () => (typeof hasKeystone === "function" && hasKeystone("void") ? Infinity : 5),
       effect: (n) => Decimal.pow(1.3, n),
       effectDisplay: (x) => "Requirements ÷" + format(x),
     },
@@ -93,6 +103,15 @@ registerLayer({
       cost: partCost(2, 3),
       effect: (n) => E(n).mul(5),
       effectDisplay: (x) => "+" + formatWhole(x) + " Scales on Hatch",
+    },
+    lineage: {
+      title: "Ancient Lineage",
+      icon: "assets/icons/trait_inherit.jpg",
+      desc: "Old blood remembers the kingdoms it shattered. Embers ×(1 + 0.25 per Realm conquered) per level.",
+      cost: partCost(10, 4),
+      unlocked: () => realms() >= 1,
+      effect: (n) => Decimal.pow(1 + 0.25 * realms(), n),
+      effectDisplay: (x) => "Embers " + formatMult(x),
     },
   },
 

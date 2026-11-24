@@ -19,6 +19,8 @@ function buildHeader() {
   const embersBox = document.getElementById("headerEmbersBox");
   const gold = document.getElementById("headerGold");
   const goldBox = document.getElementById("headerGoldBox");
+  const starlight = document.getElementById("headerStarlight");
+  const starlightBox = document.getElementById("headerStarlightBox");
   return () => {
     setText(food, formatFood(player.forage.food));
     setText(rate, "+" + format(tmp.forage.rate) + " / s");
@@ -30,6 +32,9 @@ function buildHeader() {
     setText(embers, formatWhole(b.embers));
     setVisible(goldBox, realms() > 0);
     setText(gold, formatWhole(player.conquest.gold));
+    const f = player.firmament;
+    setVisible(starlightBox, (f && f.total.gt(0)) || (typeof realms === "function" && realms() >= 7));
+    if (f) setText(starlight, formatWhole(f.starlight));
   };
 }
 
